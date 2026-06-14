@@ -1,0 +1,17 @@
+---
+description: Reservation Manager child module UI and routes
+globs:
+  - app/Http/Controllers/ReservationManagerController.php
+  - resources/js/Pages/ReservationManager.jsx
+  - resources/js/Components/ReservationManager/**
+  - resources/js/data/reservationManagerSeed.js
+  - docs/reservation-manager-design.md
+---
+
+# Reservation Manager
+
+Child module spec: `docs/reservation-manager-design.md` and `docs/command-center-widgets/11_Reservation_Engine_Widget.md`.
+
+Route: `/modules/reservations` (`reservations`). Legacy ops queue remains at `/dashboard`.
+
+Decision-support only — approvals and formal notices require human action.

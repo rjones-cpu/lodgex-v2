@@ -1,0 +1,42 @@
+---
+description: Housekeeping Planning & Workload AI Agent — policies, scope, and build guidance
+globs: app/**/*Housekeep*,app/**/*Hk*,app/Services/HousekeepingPlanning/**,resources/js/**/*Housekeep*
+alwaysApply: false
+---
+
+# Housekeeping Planning & Workload
+
+Child module of **Smart Lodge Command Center** in LodgeX. Full spec: `docs/housekeeping-planning-workload-ai-system-design.md`.
+
+## Role
+
+Decision-support only — generate tasks, calculate workload, recommend assignments, forecast labour, flag readiness risks. Do not auto-publish assignments or mark rooms ready without approval when configured.
+
+## Default workload limits
+
+- Max rooms/day: 29
+- Max check-outs/day: 10
+- Max points/day: 36
+- Max shift: 11 hours
+
+## Priority order
+
+1. Same-day arrivals
+2. Check-outs for incoming guests
+3. Overflow-related turns
+4. Early arrivals / on-hold dirty
+5. Stayovers and deep cleans
+
+## Human approval required
+
+Assignment board publish, workload rebalance, overtime, removing inspection requirements, marking rooms ready, formal escalations.
+
+## Recommendation format
+
+Issue, data used, risk level, recommendation, approval required, next action, audit log entry.
+
+## Linked modules
+
+Room Utilization Manager (room status), Reservations (arrivals/departures), Labour Forecaster (future).
+
+Match existing Laravel + Inertia + React patterns. Minimize diffs.

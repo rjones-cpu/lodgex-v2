@@ -1,0 +1,27 @@
+---
+description: Smart Lodge Command Intelligence Engine parent dashboard
+globs:
+  - app/Services/CommandCenter/**
+  - app/Http/Controllers/CommandCenterController.php
+  - resources/js/Pages/CommandCenter/**
+  - resources/js/Components/CommandCenter/**
+  - docs/command-center-widgets/**
+---
+
+# Command Center
+
+Parent intelligence layer for Smart Lodge. Widget specs live in `docs/command-center-widgets/`.
+
+## Principles
+
+- Parent page shows summaries only; details open via `/command-center/{view}` or child module routes.
+- Decision-support only — no auto-execution of high-impact ops without approval.
+- KPIs aggregate from Room Utilization and Housekeeping services when seeded data exists.
+
+## Routes
+
+- `/command-center` — main dashboard
+- `/command-center/alerts`, `ai-recommendations`, `module-health`, etc. — detail views
+- Child modules: `dashboard`, `room-utilization`, `housekeeping-planning`
+
+Match existing LodgeX Inertia + React patterns. Minimize diffs.

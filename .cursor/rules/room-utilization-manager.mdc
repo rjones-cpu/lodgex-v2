@@ -1,0 +1,46 @@
+---
+description: Room Utilization Manager AI Agent — policies, scope, and build guidance
+globs: app/**/*Room*,app/**/*Utilization*,app/**/*Hold*,app/**/*Allotment*,resources/js/**/*Utilization*,resources/js/**/*RoomUtil*
+alwaysApply: false
+---
+
+# Room Utilization Manager
+
+Child module of **Smart Lodge Command Center** in LodgeX. Full spec: `docs/room-utilization-manager-cursor-training-package.md`.
+
+## Role
+
+Decision-support only — analyze, recommend, escalate. Do not auto-execute high-impact changes.
+
+## Availability rule
+
+A room is available only when status is **Vacant Clean** and it is not held, blocked, assigned, restricted, or on maintenance/out-of-service.
+
+## Before hotel overflow, check
+
+1. Vacant clean rooms
+2. Vacant dirty rooms cleanable in time
+3. Releasable on-holds
+4. No-show / cancelled / duplicate reservations
+5. Maintenance rooms returning to service
+6. Unused contractor allotments
+7. Alternate room types or dorms
+
+## Human approval required
+
+Releases, reassignments, extension denials, hotel overflow, allotment changes, walk-ins, fatigue exceptions, maintenance return-to-service, room status overrides, formal contractor/client notices.
+
+## Recommendation format
+
+Every recommendation includes: issue, data used, risk level (low/medium/high/critical), recommendation, approval required, next action, audit log entry.
+
+## Build order (when implementing)
+
+1. Data models (Room, Reservation, Worker, RoomHold, ContractorAllotment, MaintenanceHold, HousekeepingTask, ForecastSnapshot, AIRecommendation)
+2. Room status engine
+3. Utilization and forecasting
+4. AI advisor services
+5. UI boards and dashboard
+6. Approval workflows and audit trail
+
+Match existing Laravel + Inertia + React patterns in this repo. Minimize diffs; no uncontrolled automation.

@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    @media (min-width: 1101px) {
+        html,
+        body {
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        #app {
+            min-height: 100%;
+        }
+    }
+}
+
+@layer components {
+    @media (min-width: 1101px) {
+        .app-viewport-shell {
+            @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+        }
+
+        .app-viewport-header {
+            @apply shrink-0;
+        }
+
+        .app-viewport-body {
+            @apply min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain;
+        }
+
+        .command-center-main {
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+        }
+
+        .command-center-main::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .command-center-main::-webkit-scrollbar-thumb {
+            background: rgb(203 213 225);
+            border-radius: 9999px;
+        }
+
+        .command-center-engine-grid {
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+        }
+
+        .command-center-engine-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .command-center-engine-grid::-webkit-scrollbar-thumb {
+            background: rgb(203 213 225);
+            border-radius: 9999px;
+        }
+    }
+
+    @media (min-width: 1101px) {
+        .smart-lodge-cc .command-ai-agent {
+            min-height: 148px;
+        }
+
+        .smart-lodge-cc .command-center-main {
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+        }
+    }
+
+    @media (min-width: 1101px) and (max-height: 900px) {
+        .command-center-dashboard .command-ai-agent {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .command-center-dashboard .command-ai-agent .ai-robot-icon {
+            height: 102px;
+            width: 116px;
+        }
+
+        .command-center-dashboard .command-ai-agent .ai-agent-title {
+            font-size: 16px;
+            white-space: nowrap;
+        }
+
+        .command-center-dashboard .command-ai-agent .ai-agent-input {
+            height: 2.5rem;
+        }
+
+        .command-center-dashboard .command-ai-agent .ai-agent-pills {
+            margin-top: 0.5rem;
+        }
+
+        .command-center-dashboard .command-summary-row,
+        .command-center-dashboard .executive-card-row {
+            gap: 0.5rem;
+        }
+
+        .command-center-dashboard .capability-strip,
+        .command-center-dashboard .intelligence-outputs-bar {
+            padding-top: 0.375rem;
+            padding-bottom: 0.375rem;
+        }
+
+        .command-center-dashboard .command-center-footer {
+            padding-top: 0.375rem;
+            padding-bottom: 0.375rem;
+        }
+    }
+}

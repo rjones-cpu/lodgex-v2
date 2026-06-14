@@ -1,0 +1,15 @@
+export const APP_NAV_ITEMS = [
+    { label: 'Command Center', icon: '⚙️', href: 'command-center' },
+    { label: 'Reservation Operations', icon: '▦', href: 'dashboard' },
+    { label: 'Room Utilization', icon: '📊', href: 'room-utilization' },
+    { label: 'Housekeeping Planning', icon: '🧹', href: 'housekeeping-planning' },
+    { label: 'Room Inventory', icon: '🛏️', href: 'room-inventory' },
+    { label: 'Messaging', icon: '💬', href: null },
+    { label: 'Accommodation Workforce', icon: '👥', href: null },
+    { label: 'Policies', icon: '☑️', href: null },
+    { label: 'Forecasting', icon: '📈', href: null },
+    { label: 'Maintenance', icon: '🔧', href: null },
+    { label: 'Companies', icon: '🏢', href: null },
+    { label: 'Audit Trail', icon: '📋', href: null },
+    { label: 'Settings', icon: '⚙️', href: null },
+];
