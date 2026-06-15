@@ -807,7 +807,9 @@ class CommandCenterService
     private function moduleHealthDetail(array $ctx): array
     {
         return [
-            'title' => 'Child Module Intelligence',
+            // Renamed to match the Smart Lodge Intelligence Hub design.
+            // Page subtitle is unchanged — it already matches the new design.
+            'title' => 'Smart Lodge Intelligence Hub',
             'subtitle' => 'Health and freshness across child agents.',
             'theme' => 'blue',
             'health' => $ctx['childModuleHealth'],
@@ -816,7 +818,8 @@ class CommandCenterService
                 ['module' => 'Reservation Engine', 'status' => 'Synced', 'time' => '2 min ago'],
                 ['module' => 'Room Utilization', 'status' => 'Synced', 'time' => '2 min ago'],
                 ['module' => 'Housekeeping Planning', 'status' => 'Synced', 'time' => '5 min ago'],
-                ['module' => 'Boon schedule feed', 'status' => 'Pending validation', 'time' => '18 min ago'],
+                ['module' => 'Food Cost Forecasting', 'status' => 'Synced', 'time' => '6 min ago'],
+                ['module' => 'Boon Schedule Feed', 'status' => 'Pending validation', 'time' => '18 min ago'],
             ],
         ];
     }
@@ -1113,6 +1116,10 @@ class CommandCenterService
                 'status' => 'Stable',
                 'accent' => 'green',
                 'iconKey' => 'health',
+                // Wire the summary card to the redesigned Smart Lodge
+                // Intelligence Hub view so clicking it actually navigates.
+                'route' => 'command-center.show',
+                'routeParams' => ['view' => 'module-health'],
             ],
             [
                 'id' => 'occupancy',
@@ -1683,7 +1690,11 @@ class CommandCenterService
     private function childModuleHealth(): array
     {
         return [
-            'modulesActive' => 7,
+            // Smart Lodge Intelligence Hub displays the 8 child modules
+            // returned by childModules() (Reservation, Room Utilization,
+            // Housekeeping, Labour, Consumables, Guest, Food Cost Forecasting,
+            // Boon Schedule Feed).
+            'modulesActive' => 8,
             'warnings' => 0,
             'healthScore' => 98,
             'lastUpdated' => '2 min ago',
@@ -1758,6 +1769,31 @@ class CommandCenterService
                 'icon' => '👤',
                 'route' => 'command-center.show',
                 'routeParams' => ['view' => 'module-health'],
+            ],
+            [
+                // 7th module — appears as the bottom-row left card on the Hub.
+                // Routed to food-preferences for now (closest existing detail
+                // view). Repoint to a dedicated food-cost view once it ships.
+                'id' => 'food',
+                'title' => 'Food Cost Forecasting & Engine',
+                'description' => 'Forecast meal demand, food cost & purchasing needs',
+                'status' => 'Active',
+                'icon' => '🍽️',
+                'route' => 'command-center.show',
+                'routeParams' => ['view' => 'food-preferences'],
+            ],
+            [
+                // 8th module — appears as the bottom-row right card on the Hub.
+                // Boon is a workforce schedule integration; the integrations
+                // detail view is the natural landing page until a dedicated
+                // Boon page exists.
+                'id' => 'boon-schedule',
+                'title' => 'Boon Schedule Feed',
+                'description' => 'Sync workforce schedules, validate changes & forecast demand',
+                'status' => 'Active',
+                'icon' => '📆',
+                'route' => 'command-center.show',
+                'routeParams' => ['view' => 'integrations'],
             ],
         ];
     }

@@ -34,6 +34,21 @@ export default {
                 'lx-pop': '0 18px 45px rgba(15, 23, 42, 0.18)',
                 'lx-toast': '0 18px 45px rgba(15, 23, 42, 0.22)',
             },
+            // Slow orange pulse used by the Pinned dashboard tab when one or
+            // more pinned reservations have hit (or passed) their remind-by
+            // datetime. The keyframes interpolate the tab's background only
+            // — text/border tones stay static so the flash reads as a soft
+            // alert rather than a jarring strobe. Pair with
+            // `motion-reduce:animate-none` at the call site for accessibility.
+            keyframes: {
+                'pin-flash': {
+                    '0%, 100%': { backgroundColor: '#ffffff' },
+                    '50%': { backgroundColor: '#fed7aa' },
+                },
+            },
+            animation: {
+                'pin-flash': 'pin-flash 1.8s ease-in-out infinite',
+            },
         },
     },
 

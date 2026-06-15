@@ -45,6 +45,29 @@ function statusKey(value) {
     return String(value).toLowerCase().replace(/[^a-z]/g, '');
 }
 
+// Hold-day values come from the backend as fractional days (e.g.
+// 2.6027909590162035 = 2 days, 14h 28m). Tables only need whole days, so
+// truncate to the integer portion (drop everything after the decimal).
+// Pass-through for null/undefined and for values that are already
+// strings/integers we don't want to mangle.
+function formatHoldDays(value) {
+    if (value === null || value === undefined || value === '') return '—';
+    const num = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(num)) return value;
+    return Math.trunc(num);
+}
+
+// Defensive cleanup for free-form strings (e.g. AI advisor `dataUsed`,
+// audit log entries) that may already contain a fractional day count
+// like "Hold 10.725260123194 days". Truncates the number to the integer
+// portion — everything after the decimal is removed — so the UI never
+// surfaces decimals. Older recommendation rows in the database can
+// still contain fractions until the advisor re-syncs.
+export function cleanDecimalDays(value) {
+    if (typeof value !== 'string' || value === '') return value;
+    return value.replace(/(\d+)\.\d+(\s+days?\b)/gi, (_, whole, suffix) => `${whole}${suffix}`);
+}
+
 export function Pill({ value, className = '' }) {
     const key = statusKey(value);
     const tone = STATUS_STYLES[key] || 'bg-slate-100 text-slate-500';
@@ -169,7 +192,7 @@ export function StatusPanel({ rows }) {
                             </Td>
                             <Td>{r.worker || '—'}</Td>
                             <Td>{r.company || '—'}</Td>
-                            <Td>{r.holdDays || '—'}</Td>
+                            <Td>{formatHoldDays(r.holdDays)}</Td>
                             <Td>{r.isAvailable ? <Pill value="Yes" /> : 'No'}</Td>
                             <Td>{r.updated}</Td>
                         </tr>
@@ -319,7 +342,7 @@ export function OnHoldPanel({ rows = [] }) {
                             <Td>{r.dorm}</Td>
                             <Td>{r.worker}</Td>
                             <Td>{r.company}</Td>
-                            <Td>{r.holdDays}</Td>
+                            <Td>{formatHoldDays(r.holdDays)}</Td>
                             <Td>{r.returnDate}</Td>
                             <Td>{r.policy}</Td>
                             <Td>{r.overPolicy ? <Pill value="Yes" /> : 'No'}</Td>
@@ -498,7 +521,7 @@ export function AiPanel({ recommendations, onSelect, onApprove, onDismiss }) {
                     className="cursor-pointer rounded-xl border border-lx-border bg-[#fbfdff] p-4 hover:bg-[#eef6ff]"
                 >
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                        <strong className="text-lx-navy">{rec.issue}</strong>
+                        <strong className="text-lx-navy">{cleanDecimalDays(rec.issue)}</strong>
                         <div className="flex flex-wrap gap-2">
                             {rec.category && (
                                 <span className="inline-flex items-center rounded-lg bg-[#eaf2ff] px-2.5 py-1 text-xs font-black text-lx-blue">
@@ -511,7 +534,7 @@ export function AiPanel({ recommendations, onSelect, onApprove, onDismiss }) {
                     </div>
                     <p className="mt-2 text-xs text-lx-ink">
                         <span className="font-extrabold text-slate-500">Recommendation: </span>
-                        {rec.recommendation}
+                        {cleanDecimalDays(rec.recommendation)}
                     </p>
                     <p className="mt-1 text-xs text-lx-ink">
                         <span className="font-extrabold text-slate-500">Approval: </span>
@@ -614,7 +637,7 @@ export function RecentAuditList({ entries = [] }) {
                         <span className="capitalize">{entry.action}</span>
                         <span className="text-[10px] font-bold text-slate-500">{entry.at}</span>
                     </div>
-                    <p className="mt-0.5 line-clamp-2 text-lx-ink">{entry.issue}</p>
+                    <p className="mt-0.5 line-clamp-2 text-lx-ink">{cleanDecimalDays(entry.issue)}</p>
                     {entry.category && (
                         <span className="mt-1 inline-block text-[10px] font-bold text-lx-blue">
                             {categoryLabel(entry.category)}
@@ -632,10 +655,10 @@ export function TopAiPreview({ recommendations = [], onViewAll }) {
             {recommendations.slice(0, 3).map((rec) => (
                 <div key={rec.id} className="mb-3 rounded-xl border border-lx-border bg-[#fbfdff] p-3 text-xs">
                     <div className="flex justify-between gap-2">
-                        <strong className="text-lx-navy">{rec.issue}</strong>
+                        <strong className="text-lx-navy">{cleanDecimalDays(rec.issue)}</strong>
                         <Pill value={rec.risk} />
                     </div>
-                    <p className="mt-1.5 text-lx-ink">{rec.nextAction}</p>
+                    <p className="mt-1.5 text-lx-ink">{cleanDecimalDays(rec.nextAction)}</p>
                 </div>
             ))}
             <button type="button" onClick={onViewAll} className="text-xs font-black text-lx-blue">

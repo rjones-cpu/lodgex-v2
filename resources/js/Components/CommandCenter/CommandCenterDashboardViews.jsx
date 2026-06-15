@@ -1,13 +1,28 @@
 import { ExecutiveDashboardView } from './ExecutiveDashboardView';
 import {
     AlertRow,
-    ChildModuleCard,
-    HealthRing,
     KpiCard,
     PanelCard,
     SummaryWidgetCard,
 } from './Cards';
 import { Link } from '@inertiajs/react';
+// Icon set for the Smart Lodge Intelligence Hub — kept colocated here
+// because every other dashboard in this file uses inline SVG / Cards. The
+// Hub design (HealthCard, SyncTimelineCard, ModuleCard) draws on these.
+import {
+    Activity,
+    ArrowRight,
+    BarChart3,
+    CalendarDays,
+    ClipboardList,
+    Clock3,
+    ForkKnife,
+    Package,
+    ShieldCheck,
+    User,
+    Users,
+    WandSparkles,
+} from 'lucide-react';
 
 const THEMES = {
     blue: {
@@ -340,34 +355,228 @@ export function AiRecommendationsDashboard({ detail }) {
     );
 }
 
+// === Smart Lodge Intelligence Hub helpers ===
+// Local to ModuleHealthDashboard. The shared HealthRing / ChildModuleCard /
+// DashboardHero / PanelCard in Cards.jsx remain in place for every other
+// detail view that still uses them.
+
+// Module id -> lucide icon. Used by HubModuleCard to pick the glyph for
+// each tile. Unknown ids fall back to CalendarDays.
+const HUB_MODULE_ICONS = {
+    reservations: CalendarDays,
+    'room-utilization': BarChart3,
+    housekeeping: WandSparkles,
+    labour: Users,
+    consumables: Package,
+    guest: User,
+    'guest-profile': User,
+    food: ForkKnife,
+    'boon-schedule': ClipboardList,
+};
+
+function hubModuleHref(module) {
+    if (!module?.route) return null;
+    return module.routeParams ? route(module.route, module.routeParams) : route(module.route);
+}
+
+function HubStatusPill({ label, tone = 'success' }) {
+    const styles = tone === 'success'
+        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+        : 'bg-amber-50 text-amber-600 border-amber-100';
+    const dot = tone === 'success' ? 'bg-emerald-500' : 'bg-amber-500';
+    return (
+        <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${styles}`}>
+            <span className={`h-2 w-2 rounded-full ${dot}`} />
+            {label}
+        </span>
+    );
+}
+
+function HubTopBar({ detail }) {
+    const title = detail.title || 'Smart Lodge Intelligence Hub';
+    const subtitle = detail.subtitle || 'Health and freshness across Smart Lodge intelligence modules.';
+    return (
+        <div className="min-w-0">
+            {/* Back link lives inline with the hero now that the white page
+                header strip is suppressed for this view (see Detail.jsx). */}
+            <Link
+                href={route('command-center')}
+                className="inline-flex items-center text-sm font-semibold text-blue-700 hover:underline"
+            >
+                ← Back to Command Center
+            </Link>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-950 md:text-5xl xl:text-6xl">
+                {title}
+            </h1>
+            <p className="mt-3 text-lg text-slate-500">{subtitle}</p>
+        </div>
+    );
+}
+
+function HubHealthScoreCard({ health }) {
+    const score = health?.healthScore ?? 98;
+    const modulesActive = health?.modulesActive ?? 0;
+    const warnings = health?.warnings ?? 0;
+
+    return (
+        <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+            <div className="flex h-full flex-col items-center gap-6 md:flex-row md:gap-10">
+                {/* Donut: full conic ring with white inner circle, bottom
+                    shield-check badge. Mirrors the reference DonutProgress. */}
+                <div className="relative flex h-40 w-40 shrink-0 items-center justify-center">
+                    <div
+                        className="h-40 w-40 rounded-full"
+                        style={{
+                            background: `conic-gradient(#2563eb 0 ${score}%, #dbeafe ${score}% 100%)`,
+                        }}
+                        aria-hidden
+                    />
+                    <div className="absolute flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white shadow-sm">
+                        <span className="text-4xl font-bold text-slate-900">{score}%</span>
+                    </div>
+                    <div className="absolute bottom-1 rounded-full bg-white p-2 shadow-md ring-1 ring-slate-100">
+                        <ShieldCheck className="h-5 w-5 text-blue-600" />
+                    </div>
+                </div>
+
+                <div className="text-center md:text-left">
+                    <h2 className="text-2xl font-bold text-slate-900">Overall Health Score</h2>
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-lg text-slate-500 md:justify-start">
+                        <span>{modulesActive} modules active</span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        <span>{warnings} warnings</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Decorative gradient strip at the bottom of the card. */}
+            <div className="mt-8 h-16 rounded-[22px] bg-gradient-to-r from-blue-50 to-slate-50" />
+        </div>
+    );
+}
+
+function HubSyncTimelineCard({ items = [] }) {
+    return (
+        <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-blue-50 p-2 text-blue-600">
+                        <Activity className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-900">Sync Timeline</h3>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600">
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                        Live
+                    </span>
+                    <button
+                        type="button"
+                        className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                        View all
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                {items.map((item, index) => {
+                    const isPending = (item.status || '').toLowerCase().startsWith('pending');
+                    const isLast = index === items.length - 1;
+                    return (
+                        <div
+                            key={item.module}
+                            className={`flex flex-col gap-3 px-6 py-5 md:flex-row md:items-center md:justify-between ${
+                                isLast ? '' : 'border-b border-slate-100'
+                            }`}
+                        >
+                            <div className="flex items-center gap-4">
+                                {isPending ? (
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                                        <Clock3 className="h-4 w-4" />
+                                    </div>
+                                ) : (
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                                        <ShieldCheck className="h-4 w-4" />
+                                    </div>
+                                )}
+                                <span className="font-semibold text-slate-800">{item.module}</span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 md:justify-end">
+                                <span className={`text-sm font-semibold ${isPending ? 'text-amber-600' : 'text-slate-500'}`}>
+                                    {item.status}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-sm text-slate-500">{item.time}</span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function HubModuleCard({ module }) {
+    const Icon = HUB_MODULE_ICONS[module.id] || CalendarDays;
+    const href = hubModuleHref(module);
+    const status = module.status || 'Active';
+    const tone = status.toLowerCase() === 'pending' ? 'warning' : 'success';
+
+    // `flex h-full flex-col` + `mt-auto` on the link pins "Open module" to
+    // the bottom edge of every card, so cards with shorter titles/
+    // descriptions still line their CTAs up with the longer ones in the
+    // same row.
+    return (
+        <div className="flex h-full flex-col rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="mb-6 flex items-start justify-between gap-4">
+                <div className="rounded-2xl bg-slate-50 p-3 text-blue-600">
+                    <Icon className="h-5 w-5" />
+                </div>
+                <HubStatusPill label={status} tone={tone} />
+            </div>
+
+            <h4 className="max-w-[260px] text-[26px] font-bold leading-tight text-slate-900">
+                {module.title}
+            </h4>
+            <p className="mt-3 max-w-[300px] text-sm leading-6 text-slate-500">
+                {module.description}
+            </p>
+
+            {href ? (
+                <Link
+                    href={href}
+                    className="mt-auto inline-flex items-center gap-2 pt-8 text-sm font-semibold text-blue-600 hover:underline"
+                >
+                    Open module <ArrowRight className="h-4 w-4" />
+                </Link>
+            ) : (
+                <span className="mt-auto inline-flex items-center gap-2 pt-8 text-sm font-semibold text-blue-600">
+                    Open module <ArrowRight className="h-4 w-4" />
+                </span>
+            )}
+        </div>
+    );
+}
+
 export function ModuleHealthDashboard({ detail }) {
     return (
-        <div className="grid gap-5">
-            <DashboardHero detail={detail} />
-            <section className="grid gap-4 md:grid-cols-[280px_1fr]">
-                <div className="rounded-2xl border border-lx-border bg-white p-6 text-center shadow-lx-soft">
-                    <HealthRing score={detail.health?.healthScore ?? 98} />
-                    <p className="mt-3 font-black text-lx-navy">Overall Health Score</p>
-                    <p className="text-sm text-slate-500">
-                        {detail.health?.modulesActive} modules active · {detail.health?.warnings} warnings
-                    </p>
-                </div>
-                <PanelCard title="Sync Timeline">
-                    <ul className="divide-y divide-lx-line">
-                        {(detail.syncTimeline || []).map((item) => (
-                            <li key={item.module} className="flex items-center justify-between px-5 py-3">
-                                <span className="font-extrabold text-lx-navy">{item.module}</span>
-                                <span className="text-xs font-bold text-slate-500">
-                                    {item.status} · {item.time}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                </PanelCard>
+        <div className="grid gap-8">
+            <HubTopBar detail={detail} />
+
+            {/* Top row: health donut + sync timeline. ~1fr / 1.45fr split
+                mirrors the reference; stacks vertically below xl. */}
+            <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1.45fr]">
+                <HubHealthScoreCard health={detail.health} />
+                <HubSyncTimelineCard items={detail.syncTimeline || []} />
             </section>
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+
+            {/* Module grid: 1 col on mobile, 2 on tablet, 4 on 2xl. */}
+            <section className="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-4">
                 {(detail.modules || []).map((module) => (
-                    <ChildModuleCard key={module.id} module={module} />
+                    <HubModuleCard key={module.id} module={module} />
                 ))}
             </section>
         </div>

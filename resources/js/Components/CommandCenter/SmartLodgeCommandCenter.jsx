@@ -221,12 +221,12 @@ export default function SmartLodgeCommandCenter({
 
     const header = (
         <header className="shrink-0 bg-[#F6F8FC] px-4 pb-2 pt-4">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <h1 className="m-0 whitespace-nowrap text-[22px] font-black leading-none tracking-tight text-[#06194A]">SMART LODGE COMMAND CENTER</h1>
-                    <p className="m-0 mt-1 whitespace-nowrap text-[11px] font-semibold text-[#006BFF]">Operational Intelligence. AI Insights. Smarter Decisions.</p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <h1 className="m-0 text-[22px] font-black leading-none tracking-tight text-[#06194A]">SMART LODGE COMMAND CENTER</h1>
+                    <p className="m-0 mt-1 text-[11px] font-semibold text-[#006BFF]">Operational Intelligence. AI Insights. Smarter Decisions.</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                     <div className="flex items-center gap-2 rounded-[10px] border border-[#E4ECF5] bg-white px-2.5 py-1.5 shadow-[0_2px_8px_rgba(6,25,74,0.04)]">
                         <span className="grid h-7 w-7 place-items-center rounded-[7px] text-[#006BFF]">
                             <IconCalendarGrid className="h-4 w-4" />
@@ -273,19 +273,25 @@ export default function SmartLodgeCommandCenter({
 
                         <section className="shrink-0 rounded-[12px] border border-[#E4ECF5] bg-white p-2.5 shadow-[0_4px_16px_rgba(6,25,74,0.035)]">
                             <h2 className="m-0 text-[9px] font-black uppercase tracking-[0.14em] text-[#071B4D]">TODAY&apos;S COMMAND SUMMARY</h2>
-                            <div className="mt-2 grid grid-cols-8 gap-1.5">
+                            {/* Wrap to 4 cols on laptops, 8 on desktop, so cards
+                                never get squeezed below ~140px. */}
+                            <div className="mt-2 grid grid-cols-4 gap-1.5 min-[1500px]:grid-cols-8">
                                 {commandSummary.map((m) => <SummaryCard key={m.id} metric={m} />)}
                             </div>
                         </section>
 
                         <section className="shrink-0 rounded-[12px] border border-[#E4ECF5] bg-white p-2.5 shadow-[0_4px_16px_rgba(6,25,74,0.035)]">
                             <h2 className="m-0 text-[9px] font-black uppercase tracking-[0.14em] text-[#071B4D]">COMMAND FUNCTIONS</h2>
-                            <div className="mt-2 grid grid-cols-5 gap-2">
+                            <div className="mt-2 grid grid-cols-3 gap-2 min-[1500px]:grid-cols-5">
                                 {commandFunctions.map((c) => <FunctionCard key={c.id} card={c} />)}
                             </div>
                         </section>
 
-                        <section className="grid grid-cols-2 gap-2.5">
+                        {/* Stack the two engine panels on laptop widths so each
+                            panel gets full width and its inner card grid
+                            (3-up / 4-up) no longer squeezes content off the
+                            right edge. Side-by-side resumes at >=1500px. */}
+                        <section className="grid grid-cols-1 gap-2.5 min-[1500px]:grid-cols-2">
                             <EnginePanel title={occupancyEngine.title} subtitle={occupancyEngine.subtitle} accent="blue" lastUpdated={occupancyEngine.lastUpdated}>
                                 <div className="grid grid-cols-3 gap-1.5">
                                     {(occupancyEngine.modules || []).map((m) => (

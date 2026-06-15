@@ -45,8 +45,13 @@ export default function CommandCenterDetail({ view, detail = {}, lastUpdated = '
     const { title, subtitle } = detail;
     const DashboardView = VIEW_COMPONENTS[view];
     const isExecutive = view === 'executive-dashboards';
+    // The Smart Lodge Intelligence Hub view owns its own hero (back link,
+    // eyebrow, big title) so the standard white header strip would
+    // duplicate the title. Suppress it for that one view only — every
+    // other detail view continues to render the shared header.
+    const isHub = view === 'module-health';
 
-    const header = (
+    const header = isHub ? null : (
         <header className="border-b border-lx-border bg-white px-6 py-5">
             <Link href={route('command-center')} className="text-sm font-black text-lx-blue">
                 ← Back to Command Center

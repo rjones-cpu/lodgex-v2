@@ -3,6 +3,7 @@ import {
     AllotmentPanel,
     ApprovalsPanel,
     categoryLabel,
+    cleanDecimalDays,
     ContractorOccupancyPanel,
     ForecastPanel,
     HousekeepingPanel,
@@ -254,8 +255,8 @@ export default function RoomUtilizationManager({
                             ))}
                         </section>
 
-                        <section className="grid grid-cols-[1fr_340px] items-start gap-[18px] max-[1100px]:grid-cols-1">
-                            <div>
+                        <section className="grid grid-cols-[minmax(0,1fr)_340px] items-start gap-[18px] max-[1100px]:grid-cols-1">
+                            <div className="min-w-0">
                                 <div className="overflow-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card">
                                     <div className="grid grid-cols-5 border-b border-lx-border bg-white max-[1450px]:grid-cols-3 max-[900px]:grid-cols-2">
                                         {UTILIZATION_TABS.map((t) => (
@@ -419,7 +420,7 @@ export default function RoomUtilizationManager({
                                                     {categoryLabel(selectedRec.category)}
                                                 </span>
                                             )}
-                                            <strong className="block text-sm text-lx-navy">{selectedRec.issue}</strong>
+                                            <strong className="block text-sm text-lx-navy">{cleanDecimalDays(selectedRec.issue)}</strong>
                                             <p className="mt-2 text-xs text-lx-ink">
                                                 <span className="font-extrabold text-slate-500">Risk: </span>
                                                 <span className={RISK_STYLES[selectedRec.risk.toLowerCase()]}>
@@ -428,11 +429,11 @@ export default function RoomUtilizationManager({
                                             </p>
                                             <p className="mt-2 text-xs text-lx-ink">
                                                 <span className="font-extrabold text-slate-500">Data: </span>
-                                                {selectedRec.dataUsed}
+                                                {cleanDecimalDays(selectedRec.dataUsed)}
                                             </p>
                                             <p className="mt-2 text-xs text-lx-ink">
                                                 <span className="font-extrabold text-slate-500">Recommendation: </span>
-                                                {selectedRec.recommendation}
+                                                {cleanDecimalDays(selectedRec.recommendation)}
                                             </p>
                                             <p className="mt-2 text-xs text-lx-ink">
                                                 <span className="font-extrabold text-slate-500">Approval: </span>

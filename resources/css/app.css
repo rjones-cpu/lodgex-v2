@@ -112,3 +112,81 @@
         }
     }
 }
+
+/*
+ * Laptop-fit overrides.
+ *
+ * The desktop layout (>=1101px wide) locks the app to 100vh with
+ * overflow:hidden, with inner panels owning their own scrolling. That works
+ * on tall monitors but on laptop viewports (1366x768, 1280x800, 1440x900,
+ * 1600x900, even 1080p with browser chrome) the dense Command Center /
+ * Dashboard doesn't fit and edges get clipped instead of scrolling.
+ *
+ * For wide-but-short viewports we relax the viewport-height lock so the
+ * document scrolls naturally and every function stays reachable. The sidebar
+ * keeps a 100vh sticky height so it remains in view while the user scrolls.
+ *
+ * Threshold 1024px catches every common laptop (incl. 1080p with browser
+ * chrome) while leaving 1440p+ desktops on the original cockpit layout.
+ *
+ * Rules use !important because Tailwind's arbitrary-variant utilities
+ * (min-[1101px]:h-screen, etc.) ship in the utilities layer and would
+ * otherwise win on cascade order.
+ */
+@media (min-width: 1101px) and (max-height: 1024px) {
+    html,
+    body {
+        height: auto;
+        overflow-y: auto;
+    }
+
+    #app {
+        min-height: 100vh;
+    }
+
+    /* AppLayout / CommandCenterLayout root grids: stop locking to 100vh. */
+    .min-\[1101px\]\:h-screen {
+        height: auto !important;
+        min-height: 100vh !important;
+    }
+
+    .min-\[1101px\]\:overflow-hidden {
+        overflow: visible !important;
+    }
+
+    /* CommandCenterLayout standalone (no-sidebar) variant uses h-screen +
+       overflow-hidden directly rather than the min-[1101px] variants. */
+    .grid.h-screen.overflow-hidden {
+        height: auto !important;
+        min-height: 100vh !important;
+        overflow: visible !important;
+    }
+
+    /* Sidebar stays pinned to the viewport while the page scrolls. */
+    aside.min-\[1101px\]\:h-full {
+        height: 100vh !important;
+    }
+
+    aside.min-\[1101px\]\:max-h-full {
+        max-height: 100vh !important;
+    }
+
+    /* AppPageShell flows naturally instead of owning a self-contained scroll. */
+    .app-viewport-shell {
+        flex: 0 0 auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+    }
+
+    .app-viewport-body {
+        flex: 0 0 auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+    }
+
+    /* Command Center main column + engine grids share the page-level scroll. */
+    .command-center-main,
+    .command-center-engine-grid {
+        overflow: visible !important;
+    }
+}

@@ -123,7 +123,10 @@ class RoomUtilizationAdvisorService
             ->get()
             ->map(function (RoomHold $hold) {
                 $room = $hold->room;
-                $holdDays = $hold->hold_started_at?->diffInDays(now()) ?? 0;
+                // Carbon 3+ returns a float from diffInDays(); truncate to the
+                // integer portion so the advisor output shows whole days only
+                // (everything after the decimal is dropped).
+                $holdDays = (int) ($hold->hold_started_at?->diffInDays(now()) ?? 0);
 
                 return $this->payload(
                     AiRecommendationCategory::Release,

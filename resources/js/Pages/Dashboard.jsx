@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import RoomAssignmentModal from '../Components/Dashboard/RoomAssignmentModal';
 import ExtendStayModal from '../Components/Dashboard/ExtendStayModal';
+import PinReservationModal from '../Components/Dashboard/PinReservationModal';
 import ReservationInfoCardModal from '../Components/Dashboard/ReservationInfoCardModal';
 import ScheduleModificationRequestModal from '../Components/Dashboard/ScheduleModificationRequestModal';
 import DateConfirmModal from '../Components/Dashboard/DateConfirmModal';
@@ -140,6 +141,13 @@ const TABS = [
         icon: '⚠️',
         title:
             'Reservations whose status doesn’t match their schedule color · Yellow (Travel) → Pending / Arrival / Check-In · Blue (Working) → Check-In · Green (Vacation) → On-Hold / Check-Out / Pending / Arrival · Red (Sick) → any · Light Blue (Local) → no reservation required',
+    },
+    {
+        key: 'Pinned',
+        label: 'Pinned',
+        icon: '📌',
+        title:
+            'Reservations the lodge manager has pinned for follow-up. Toggle the pin in the Selected Reservation panel to add or remove rows; pinning automatically opens the notes modal so a reminder can be captured.',
     },
 ];
 
@@ -549,6 +557,15 @@ function enrichReservation(row) {
         requestedBy: typeof row.requestedBy === 'string' && row.requestedBy.length > 0
             ? row.requestedBy
             : exampleRequestUser(row.worker || row.id || ''),
+        // Manager-pinned flag — drives the dedicated Pinned tab. Defaults to
+        // false; toggled from the pin icon on the Selected Reservation panel.
+        pinned: row.pinned === true,
+        // Manager-only pin note + optional "remind by" ISO date string. These
+        // are stored on the pin (not the reservation's public `notes` array)
+        // so they never leak into Info Card → Past Notes or any
+        // worker-facing surface. Cleared when the row is unpinned.
+        pinNote: typeof row.pinNote === 'string' ? row.pinNote : '',
+        pinRemindBy: typeof row.pinRemindBy === 'string' ? row.pinRemindBy : '',
     };
 }
 
@@ -607,6 +624,12 @@ export default function Dashboard({
     const [checkOutModalOpen, setCheckOutModalOpen] = useState(false);
     const [removeOnHoldModalOpen, setRemoveOnHoldModalOpen] = useState(false);
     const [notesModalOpen, setNotesModalOpen] = useState(false);
+    const [pinModalOpen, setPinModalOpen] = useState(false);
+    // `now` ticks every 30s so time-driven UI (currently just the Pinned tab
+    // overdue flash) re-evaluates without forcing a full reservations refresh.
+    // 30s is fine-grained enough for human-scale reminders and cheap enough
+    // to keep running indefinitely.
+    const [now, setNow] = useState(() => Date.now());
     const [scheduleModRequestOpen, setScheduleModRequestOpen] = useState(false);
     const [selectedOtherOpen, setSelectedOtherOpen] = useState(true);
     const [extendSaving, setExtendSaving] = useState(false);
@@ -632,6 +655,8 @@ export default function Dashboard({
             rows = rows.filter((r) => MODIFICATION_STATUSES.includes(r.status));
         } else if (activeTab === 'Discrepancy') {
             rows = rows.filter((r) => scheduleDiscrepancy(r) !== null);
+        } else if (activeTab === 'Pinned') {
+            rows = rows.filter((r) => r.pinned === true);
         } else if (activeTab === 'All') {
             // Approvals queue: Pending (awaiting manager approval) + Arrival
             // (approved, awaiting check-in). Rows whose status has a dedicated
@@ -755,6 +780,68 @@ export default function Dashboard({
             }
             return next;
         });
+    }
+
+    // Pin pop-up handlers — the pin icon on the Selected Reservation panel
+    // always opens the Pin Reservation modal (whether the row is currently
+    // pinned or not). Save persists `pinned: true` plus the manager-only
+    // `pinNote` / `pinRemindBy` fields; Unpin clears all three. The pin
+    // record lives entirely on the reservation row and never bleeds into the
+    // public `notes` timeline.
+    function openPinModal() {
+        if (selectedIndex < 0 || !reservations[selectedIndex]) return;
+        setPinModalOpen(true);
+    }
+
+    function savePinDetails({ pinNote, pinRemindBy }) {
+        const target = reservations[selectedIndex];
+        if (!target) return;
+        setReservations((rows) => {
+            const next = [...rows];
+            if (next[selectedIndex]) {
+                next[selectedIndex] = {
+                    ...next[selectedIndex],
+                    pinned: true,
+                    pinNote: pinNote || '',
+                    pinRemindBy: pinRemindBy || '',
+                };
+            }
+            return next;
+        });
+        setPinModalOpen(false);
+        let remindSuffix = '';
+        if (pinRemindBy) {
+            const d = new Date(pinRemindBy);
+            const pretty = Number.isNaN(d.getTime())
+                ? pinRemindBy
+                : d.toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                  });
+            remindSuffix = ` · remind by ${pretty}`;
+        }
+        flash(`Pinned ${target.worker || 'reservation'}${remindSuffix}`);
+    }
+
+    function unpinSelected() {
+        const target = reservations[selectedIndex];
+        if (!target) return;
+        setReservations((rows) => {
+            const next = [...rows];
+            if (next[selectedIndex]) {
+                next[selectedIndex] = {
+                    ...next[selectedIndex],
+                    pinned: false,
+                    pinNote: '',
+                    pinRemindBy: '',
+                };
+            }
+            return next;
+        });
+        setPinModalOpen(false);
+        flash(`Unpinned ${target.worker || 'reservation'}`);
     }
 
     function runAction(action) {
@@ -1042,6 +1129,25 @@ export default function Dashboard({
         if (sessionFlash?.toast) flash(sessionFlash.toast);
     }, [sessionFlash?.toast]);
 
+    // 30-second clock for time-driven UI (Pinned tab overdue-flash). The
+    // interval is cleared on unmount so it never leaks between page
+    // navigations.
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 30000);
+        return () => clearInterval(id);
+    }, []);
+
+    // True when at least one pinned reservation has a remind-by datetime
+    // that's already passed. Drives the Pinned tab's slow-orange flash so
+    // the lodge manager notices reminders even from another tab.
+    const hasOverduePin = useMemo(() => {
+        return reservations.some((r) => {
+            if (!r.pinned || !r.pinRemindBy) return false;
+            const t = Date.parse(r.pinRemindBy);
+            return !Number.isNaN(t) && t <= now;
+        });
+    }, [reservations, now]);
+
     useEffect(() => {
         if (pageErrors?.room || pageErrors?.reservation) {
             setAssignError(pageErrors.room || pageErrors.reservation);
@@ -1198,8 +1304,15 @@ export default function Dashboard({
                     </AppPageHeader>
 
                     <AppPageBody>
-                        <section className="grid grid-cols-[1fr_330px] items-start gap-[18px] max-[1100px]:grid-cols-1">
-                            <div>
+                        {/* minmax(0,1fr) lets the left column shrink instead of
+                            being pushed wider by the table's min-w-[1080px] —
+                            without this the right-rail aside gets clipped off
+                            the viewport on laptop widths.
+                            Right-rail width 280px gives the middle widgets
+                            (metrics, tabs, queue) more breathing room on
+                            laptops while keeping the action card readable. */}
+                        <section className="grid grid-cols-[minmax(0,1fr)_280px] items-start gap-[18px] max-[1100px]:grid-cols-1">
+                            <div className="min-w-0">
                                 <section className="mb-[18px] rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-4 shadow-lg shadow-blue-100/50">
                                     <div className="grid grid-cols-8 gap-2.5 max-[1450px]:grid-cols-4 max-[900px]:grid-cols-2">
                                         {metrics.map((m) => (
@@ -1224,7 +1337,16 @@ export default function Dashboard({
                                                         </div>
                                                     </div>
                                                     <div className="flex items-end justify-between gap-2">
-                                                        <div className="text-3xl font-black leading-none tracking-tight text-slate-950">
+                                                        <div
+                                                            className={`whitespace-nowrap font-black leading-none tracking-tight text-slate-950 ${
+                                                                typeof m.value === 'string' && m.value.includes('/')
+                                                                    ? 'text-2xl'
+                                                                    : 'text-3xl'
+                                                            }`}
+                                                            title={typeof m.value === 'string' && m.value.includes('/')
+                                                                ? `${m.value.split('/')[0].trim()} checked / ${m.value.split('/')[1].trim()} expected today`
+                                                                : undefined}
+                                                        >
                                                             {m.value}
                                                         </div>
                                                         <div
@@ -1242,22 +1364,43 @@ export default function Dashboard({
                                     </div>
                                 </section>
                                 <div className="overflow-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card">
-                                    <div className="flex overflow-x-auto border-b border-lx-border bg-white">
-                                        {TABS.map((t) => (
-                                            <button
-                                                key={t.key}
-                                                onClick={() => setTab(t.key)}
-                                                title={t.title || ''}
-                                                className={`flex flex-1 cursor-pointer items-center justify-center gap-2 border-b-[3px] px-3 py-4 text-sm font-bold leading-tight transition-colors ${
-                                                    activeTab === t.key
-                                                        ? 'border-lx-blue bg-[#eaf2ff] text-lx-blue'
-                                                        : 'border-transparent bg-white text-lx-ink hover:bg-[#f6faff]'
-                                                }`}
-                                            >
-                                                <span>{t.icon}</span>
-                                                <span className="whitespace-nowrap">{t.label}</span>
-                                            </button>
-                                        ))}
+                                    {/* Responsive tab grid: 9 tabs in one row on
+                                        wide desktops, wrap to two rows (5+4) on
+                                        laptops, three rows (3+3+3) on narrow
+                                        viewports — so every tab is reachable
+                                        without horizontal scrolling. */}
+                                    <div className="grid grid-cols-9 border-b border-lx-border bg-white max-[1500px]:grid-cols-5 max-[900px]:grid-cols-3">
+                                        {TABS.map((t) => {
+                                            const isActive = activeTab === t.key;
+                                            // Slow-orange pulse on the Pinned tab when at
+                                            // least one pinned reservation has hit (or passed)
+                                            // its remind-by datetime — but only when the tab
+                                            // isn't currently active (the manager looking at
+                                            // the queue counts as "seen"). Reduced-motion
+                                            // users get the orange tint without the animation.
+                                            const flashOverdue =
+                                                t.key === 'Pinned' && hasOverduePin && !isActive;
+                                            const tabClass = isActive
+                                                ? 'border-lx-blue bg-[#eaf2ff] text-lx-blue'
+                                                : flashOverdue
+                                                    ? 'animate-pin-flash motion-reduce:animate-none border-orange-400 bg-orange-100 text-orange-700'
+                                                    : 'border-transparent bg-white text-lx-ink hover:bg-[#f6faff]';
+                                            return (
+                                                <button
+                                                    key={t.key}
+                                                    onClick={() => setTab(t.key)}
+                                                    title={
+                                                        flashOverdue
+                                                            ? `${t.title || ''}\n\nA pinned reminder has reached its remind-by time.`
+                                                            : t.title || ''
+                                                    }
+                                                    className={`flex min-w-0 cursor-pointer items-center justify-center gap-1.5 border-b-[3px] px-2 py-3 text-xs font-bold leading-tight transition-colors ${tabClass}`}
+                                                >
+                                                    <span className="shrink-0">{t.icon}</span>
+                                                    <span className="truncate">{t.label}</span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
 
                                     <div className="flex items-center border-b border-lx-border px-[18px] py-4">
@@ -1328,11 +1471,27 @@ export default function Dashboard({
                                                 {sortedFiltered.map((r) => {
                                                     const realIndex = reservations.indexOf(r);
                                                     const isSelected = realIndex === selectedIndex;
+                                                    // On the Pinned tab, mirror the tab-level
+                                                    // flash on each row whose remind-by has
+                                                    // already passed. The selection outline
+                                                    // still shows which row is active because
+                                                    // outline is independent of background.
+                                                    const pinRemindAt = r.pinned && r.pinRemindBy
+                                                        ? Date.parse(r.pinRemindBy)
+                                                        : NaN;
+                                                    const isOverduePin =
+                                                        activeTab === 'Pinned' &&
+                                                        !Number.isNaN(pinRemindAt) &&
+                                                        pinRemindAt <= now;
                                                     return (
                                                         <tr
                                                             key={r.id ?? `${r.worker}-${realIndex}`}
                                                             onClick={() => setSelectedIndex(realIndex)}
-                                                            className={`cursor-pointer transition-colors hover:bg-[#f8fbff] ${
+                                                            className={`cursor-pointer transition-colors ${
+                                                                isOverduePin
+                                                                    ? 'animate-pin-flash motion-reduce:animate-none motion-reduce:bg-orange-100'
+                                                                    : 'hover:bg-[#f8fbff]'
+                                                            } ${
                                                                 isSelected ? 'bg-[#eef6ff] outline outline-1 outline-[#bcd7ff]' : ''
                                                             }`}
                                                         >
@@ -1417,7 +1576,24 @@ export default function Dashboard({
                                                                         <Pill value={r.onHoldAllowed === false ? 'No' : 'Yes'} />
                                                                     </td>
                                                                     <td className="border-b border-lx-line p-3 align-middle text-[13px]">
-                                                                        {Array.isArray(r.notes) && r.notes.length > 0 ? (
+                                                                        {activeTab === 'Pinned' ? (
+                                                                            // Pinned tab — Notes cell surfaces the manager-only
+                                                                            // pin note + reminder via the Pin modal. The public
+                                                                            // notes timeline stays hidden on this tab so the two
+                                                                            // note streams never bleed into each other.
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setSelectedIndex(realIndex);
+                                                                                    setPinModalOpen(true);
+                                                                                }}
+                                                                                title="View pin note & reminder"
+                                                                                className="cursor-pointer rounded-md border-0 bg-transparent p-0 text-[13px] font-black text-lx-blue underline-offset-2 hover:underline"
+                                                                            >
+                                                                                View
+                                                                            </button>
+                                                                        ) : Array.isArray(r.notes) && r.notes.length > 0 ? (
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={(e) => {
@@ -1608,8 +1784,18 @@ export default function Dashboard({
                                             </div>
                                             <button
                                                 type="button"
-                                                title="Pin selected reservation"
-                                                className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-xl text-slate-500 hover:bg-[#f4f8ff]"
+                                                onClick={openPinModal}
+                                                title={
+                                                    selected.pinned
+                                                        ? `Pinned${selected.pinRemindBy ? ` · remind by ${selected.pinRemindBy}` : ''} — click to edit`
+                                                        : 'Pin reservation (manager-only reminder)'
+                                                }
+                                                aria-pressed={selected.pinned ? 'true' : 'false'}
+                                                className={`grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg border-0 text-xl transition-colors hover:bg-[#f4f8ff] ${
+                                                    selected.pinned
+                                                        ? 'bg-[#eaf2ff] text-lx-blue'
+                                                        : 'bg-transparent text-slate-500'
+                                                }`}
                                             >
                                                 📌
                                             </button>
@@ -1887,6 +2073,14 @@ export default function Dashboard({
                 onAcknowledge={(r) =>
                     flash(`Acknowledged modification request for ${r?.worker || 'reservation'}`)
                 }
+            />
+
+            <PinReservationModal
+                open={pinModalOpen}
+                onClose={() => setPinModalOpen(false)}
+                reservation={selected}
+                onSave={savePinDetails}
+                onUnpin={unpinSelected}
             />
 
             {alertModal.open && (

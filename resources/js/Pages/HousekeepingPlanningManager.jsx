@@ -145,8 +145,8 @@ export default function HousekeepingPlanningManager({
                         ))}
                     </div>
 
-                    <section className="grid grid-cols-1 gap-[18px] xl:grid-cols-[1fr_300px]">
-                        <div className="rounded-2xl border border-lx-border bg-white shadow-lx-card">
+                    <section className="grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1fr)_300px]">
+                        <div className="min-w-0 rounded-2xl border border-lx-border bg-white shadow-lx-card">
                             <div className="flex gap-1 overflow-x-auto border-b border-lx-border px-3 py-2">
                                 {HK_TABS.map((t) => (
                                     <button

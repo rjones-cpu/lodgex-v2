@@ -7,5 +7,8 @@ export function AppPageHeader({ children, className = '' }) {
 }
 
 export function AppPageBody({ children, className = 'p-6' }) {
-    return <div className={`app-viewport-body ${className}`.trim()}>{children}</div>;
+    // min-w-0 prevents intrinsic min-content (e.g. a `min-w-[1080px]` table)
+    // from forcing the page wider than the viewport and clipping the right
+    // edge / right-rail aside on laptop widths.
+    return <div className={`app-viewport-body min-w-0 ${className}`.trim()}>{children}</div>;
 }

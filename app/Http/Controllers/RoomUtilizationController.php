@@ -43,14 +43,45 @@ class RoomUtilizationController extends Controller
         private readonly DailyUtilizationReportService $reportService,
     ) {}
 
+    /**
+     * Default landing page now renders the redesigned overview.
+     * The legacy 11-tab manager page is preserved at /room-utilization/manage.
+     */
     public function index(): Response
+    {
+        return Inertia::render('RoomUtilizationOverview', $this->buildPageProps());
+    }
+
+    /**
+     * Alias kept for any links that already point to /room-utilization/overview.
+     */
+    public function overview(): Response
+    {
+        return Inertia::render('RoomUtilizationOverview', $this->buildPageProps());
+    }
+
+    /**
+     * Legacy multi-tab manager page (Room Status, Forecast, On-Hold Review,
+     * Release Candidates, Overflow, Housekeeping, Maintenance, Contractors,
+     * AI Advisor, Approvals). Kept intact and accessible from the new
+     * overview's tab links so existing teammate functionality is preserved.
+     */
+    public function manage(): Response
+    {
+        return Inertia::render('RoomUtilizationManager', $this->buildPageProps());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPageProps(): array
     {
         $summary = $this->statusEngine->summarize();
         $forecast = $this->forecastService->build($summary);
         $this->advisorService->sync($summary, $forecast);
         $this->approvalService->seedEscalationsIfEmpty($summary, $forecast);
 
-        return Inertia::render('RoomUtilizationManager', [
+        return [
             'metrics' => $this->buildMetrics($summary, $forecast),
             'rooms' => $this->buildRooms($summary),
             'statusEngine' => $summary->toArray(),
@@ -69,7 +100,7 @@ class RoomUtilizationController extends Controller
             'pendingApprovals' => $this->buildPendingApprovals(),
             'recentAudit' => $this->buildRecentAudit(),
             'lastUpdated' => now()->format('M j, Y g:i A'),
-        ]);
+        ];
     }
 
     public function submitReleaseList(Request $request): RedirectResponse
@@ -232,7 +263,10 @@ class RoomUtilizationController extends Controller
                 'dorm' => $hold->room->dorm,
                 'worker' => $hold->worker?->name ?? '—',
                 'company' => $hold->company ?? $hold->worker?->company,
-                'holdDays' => $hold->hold_started_at ? $hold->hold_started_at->diffInDays(now()) : 0,
+                // Carbon 3+ diffInDays() returns a float; truncate to the
+                // integer portion so the frontend only sees whole days
+                // (everything after the decimal is dropped).
+                'holdDays' => $hold->hold_started_at ? (int) $hold->hold_started_at->diffInDays(now()) : 0,
                 'returnDate' => $hold->return_date?->format('M j, Y') ?? 'Unknown',
                 'policy' => "{$hold->policy_days} days",
                 'overPolicy' => $hold->over_policy,
