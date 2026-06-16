@@ -11,6 +11,7 @@ import {
     SummaryIcon,
 } from './SmartLodgeIcons';
 import CommandCenterLayout from '../../Layouts/CommandCenterLayout';
+import UserAccountMenu from '../AccommodationWorkforce/UserAccountMenu';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -249,15 +250,19 @@ export default function SmartLodgeCommandCenter({
                             <div className="font-semibold text-[#5A6B8A]">{siteLabel}</div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 rounded-[10px] border border-[#E4ECF5] bg-white px-2.5 py-1.5 shadow-[0_2px_8px_rgba(6,25,74,0.04)]">
+                    <UserAccountMenu
+                        userName={userName}
+                        userEmail={auth?.user?.email}
+                        triggerClassName="flex items-center gap-2 rounded-[10px] border border-[#E4ECF5] bg-white px-2.5 py-1.5 shadow-[0_2px_8px_rgba(6,25,74,0.04)] cursor-pointer hover:bg-[#F6F8FC]"
+                    >
                         <span className="grid h-7 w-7 place-items-center rounded-[7px] text-[#006BFF]">
                             <IconPerson className="h-4 w-4" />
                         </span>
-                        <div className="text-[9px] leading-tight">
+                        <div className="text-left text-[9px] leading-tight">
                             <div className="font-black text-[#071B4D]">{userName}</div>
                             <div className="font-semibold text-[#5A6B8A]">Lodge Manager</div>
                         </div>
-                    </div>
+                    </UserAccountMenu>
                 </div>
             </div>
         </header>

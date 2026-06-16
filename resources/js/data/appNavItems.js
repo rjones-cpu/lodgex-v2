@@ -5,7 +5,7 @@ export const APP_NAV_ITEMS = [
     { label: 'Housekeeping Planning', icon: '🧹', href: 'housekeeping-planning' },
     { label: 'Room Inventory', icon: '🛏️', href: 'room-inventory' },
     { label: 'Messaging', icon: '💬', href: null },
-    { label: 'Accommodation Workforce', icon: '👥', href: null },
+    { label: 'Accommodation Workforce', icon: '👥', href: 'accommodation-workforce' },
     { label: 'Policies', icon: '☑️', href: null },
     { label: 'Forecasting', icon: '📈', href: null },
     { label: 'Maintenance', icon: '🔧', href: null },
