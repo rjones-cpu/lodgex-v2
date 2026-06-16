@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccommodationWorkforceController;
 use App\Http\Controllers\CommandCenterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HousekeepingPlanningController;
@@ -24,6 +25,14 @@ Route::get('/', function () {
 Route::get('/modules/reservations', [ReservationManagerController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('reservations');
+
+Route::get('/accomodation-workforce', [AccommodationWorkforceController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('accommodation-workforce');
+
+Route::post('/accomodation-workforce/login-url', [AccommodationWorkforceController::class, 'loginUrl'])
+    ->middleware(['auth', 'verified'])
+    ->name('accommodation-workforce.login-url');
 
 Route::get('/command-center', [CommandCenterController::class, 'index'])
     ->middleware(['auth', 'verified'])

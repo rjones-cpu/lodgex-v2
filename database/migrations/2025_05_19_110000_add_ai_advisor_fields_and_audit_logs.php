@@ -23,7 +23,7 @@ return new class extends Migration
             $table->json('context')->nullable();
             $table->timestamps();
 
-            $table->index(['ai_recommendation_id', 'created_at']);
+            $table->index(['ai_recommendation_id', 'created_at'], 'ai_rec_audit_logs_rec_created_idx');
         });
     }
 
