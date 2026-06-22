@@ -2,8 +2,8 @@ export const STATUS_STYLES = {
     occupied: 'bg-blue-100 text-lx-blue',
     vacantclean: 'bg-green-100 text-green-600',
     vacantdirty: 'bg-orange-100 text-orange-500',
-    onholdclean: 'bg-violet-100 text-violet-600',
-    onholddirty: 'bg-violet-100 text-violet-600',
+    onholdclean: 'bg-green-100 text-green-600',
+    onholddirty: 'bg-red-100 text-red-600',
     maintenancehold: 'bg-red-100 text-red-500',
     outofservice: 'bg-slate-200 text-slate-600',
     blockedreserved: 'bg-orange-100 text-orange-500',
@@ -347,7 +347,10 @@ export function ReleasePanel({ rows = [] }) {
                             </strong>
                             <p className="mt-1 text-[13px] text-lx-ink">{r.reason}</p>
                         </div>
-                        <Pill value={r.risk} />
+                        <div className="flex flex-wrap items-center gap-2">
+                            {r.status && <Pill value={r.status} />}
+                            <Pill value={r.risk} />
+                        </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-4 text-xs font-extrabold text-slate-500">
                         <span>Recovery: {r.recovery}</span>

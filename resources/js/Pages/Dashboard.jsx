@@ -1,10 +1,12 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ReservationControlPanel from '../Components/Dashboard/ReservationControlPanel';
 import RoomAssignmentModal from '../Components/Dashboard/RoomAssignmentModal';
 import ExtendStayModal from '../Components/Dashboard/ExtendStayModal';
 import ReservationInfoCardModal from '../Components/Dashboard/ReservationInfoCardModal';
 import ScheduleModificationRequestModal from '../Components/Dashboard/ScheduleModificationRequestModal';
 import DateConfirmModal from '../Components/Dashboard/DateConfirmModal';
+import OnHoldModal from '../Components/Dashboard/OnHoldModal';
 import ReservationNotesModal from '../Components/Dashboard/ReservationNotesModal';
 import { AppPageBody, AppPageHeader, AppPageShell } from '../Components/AppPageShell';
 import AppLayout from '../Layouts/AppLayout';
@@ -21,10 +23,10 @@ const METRICS = [
         change: '↑ 15.5%',
         direction: 'down',
         palette: {
-            border: 'border-orange-100',
-            bar: 'from-orange-500 to-amber-500',
-            iconBg: 'bg-orange-50',
-            iconText: 'text-orange-600',
+            border: 'border-blue-100',
+            bar: 'from-blue-600 to-blue-500',
+            iconBg: 'bg-blue-50',
+            iconText: 'text-blue-600',
         },
     },
     {
@@ -34,10 +36,10 @@ const METRICS = [
         change: '↑ 11.2%',
         direction: 'down',
         palette: {
-            border: 'border-sky-100',
-            bar: 'from-sky-500 to-cyan-500',
-            iconBg: 'bg-sky-50',
-            iconText: 'text-sky-600',
+            border: 'border-blue-100',
+            bar: 'from-blue-600 to-blue-500',
+            iconBg: 'bg-blue-50',
+            iconText: 'text-blue-600',
         },
     },
     {
@@ -47,10 +49,10 @@ const METRICS = [
         change: '↑ 6.2%',
         direction: 'up',
         palette: {
-            border: 'border-emerald-100',
-            bar: 'from-emerald-500 to-teal-500',
-            iconBg: 'bg-emerald-50',
-            iconText: 'text-emerald-600',
+            border: 'border-blue-100',
+            bar: 'from-blue-600 to-blue-500',
+            iconBg: 'bg-blue-50',
+            iconText: 'text-blue-600',
         },
     },
     {
@@ -60,10 +62,10 @@ const METRICS = [
         change: '↑ 12.4%',
         direction: 'up',
         palette: {
-            border: 'border-emerald-100',
-            bar: 'from-emerald-500 to-teal-500',
-            iconBg: 'bg-emerald-50',
-            iconText: 'text-emerald-600',
+            border: 'border-blue-100',
+            bar: 'from-blue-600 to-blue-500',
+            iconBg: 'bg-blue-50',
+            iconText: 'text-blue-600',
         },
     },
     {
@@ -73,10 +75,10 @@ const METRICS = [
         change: '↓ 3.1%',
         direction: 'up',
         palette: {
-            border: 'border-violet-100',
-            bar: 'from-violet-500 to-purple-500',
-            iconBg: 'bg-violet-50',
-            iconText: 'text-violet-600',
+            border: 'border-blue-100',
+            bar: 'from-blue-600 to-blue-500',
+            iconBg: 'bg-blue-50',
+            iconText: 'text-blue-600',
         },
     },
     {
@@ -86,10 +88,10 @@ const METRICS = [
         change: '↑ 10.7%',
         direction: 'down',
         palette: {
-            border: 'border-rose-100',
-            bar: 'from-rose-500 to-pink-500',
-            iconBg: 'bg-rose-50',
-            iconText: 'text-rose-600',
+            border: 'border-blue-100',
+            bar: 'from-blue-600 to-blue-500',
+            iconBg: 'bg-blue-50',
+            iconText: 'text-blue-600',
         },
     },
     {
@@ -100,7 +102,7 @@ const METRICS = [
         direction: 'up',
         palette: {
             border: 'border-blue-100',
-            bar: 'from-blue-500 to-indigo-500',
+            bar: 'from-blue-600 to-blue-500',
             iconBg: 'bg-blue-50',
             iconText: 'text-blue-600',
         },
@@ -112,34 +114,126 @@ const METRICS = [
         change: '↑ 9.1%',
         direction: 'down',
         palette: {
-            border: 'border-red-100',
-            bar: 'from-red-500 to-orange-500',
-            iconBg: 'bg-red-50',
-            iconText: 'text-red-600',
+            border: 'border-blue-100',
+            bar: 'from-blue-600 to-blue-500',
+            iconBg: 'bg-blue-50',
+            iconText: 'text-blue-600',
         },
     },
 ];
 
+// Shared stroke styling so every queue-tab icon matches the design mock.
+const TAB_ICON_PROPS = {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.9,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    className: 'h-[22px] w-[22px]',
+};
+
 const TABS = [
-    { key: 'All', label: 'Approvals', icon: '☑️' },
-    { key: 'Room Allocation', label: 'Room Allocation', icon: '🛏️' },
-    { key: 'Room Allotment', label: 'Room Allotment', icon: '🏢' },
-    { key: 'Check-In', label: 'Check-In', icon: '🧳' },
-    { key: 'Check-Out', label: 'Check-Out', icon: '☑️' },
-    { key: 'On-Hold', label: 'On-Hold', icon: '⏸️' },
     {
-        key: 'Modification Request',
-        label: 'Modification Requests',
-        icon: '📝',
-        title:
-            'Extensions: stays past original departure · Walk-Ins: walk-up requests · No-Shows: did not arrive by 07:00 next day · Schedule Discrepancy: schedule and reservation mismatch · Schedule Changes: requested date changes',
+        key: 'All',
+        label: 'All',
+        icon: (
+            <svg {...TAB_ICON_PROPS}>
+                <rect x="4" y="4" width="6" height="6" rx="1" />
+                <rect x="14" y="4" width="6" height="6" rx="1" />
+                <rect x="4" y="14" width="6" height="6" rx="1" />
+                <rect x="14" y="14" width="6" height="6" rx="1" />
+            </svg>
+        ),
     },
     {
-        key: 'Discrepancy',
-        label: 'Discrepancy',
-        icon: '⚠️',
+        key: 'Waitlisted',
+        label: 'Waitlisted',
+        icon: (
+            <svg {...TAB_ICON_PROPS}>
+                <circle cx="8" cy="8" r="2.5" />
+                <circle cx="16" cy="7" r="2" />
+                <circle cx="17" cy="16" r="2" />
+                <path d="M3 18c1.2-2.7 3.3-4 5-4s3.8 1.3 5 4" />
+                <path d="M13.5 11.5c.9-.9 1.7-1.3 2.5-1.3 1.7 0 3.1 1.3 4 3.8" />
+            </svg>
+        ),
+    },
+    {
+        key: '24-Hr Arrival',
+        label: '24-Hr Arrival',
+        icon: (
+            <svg {...TAB_ICON_PROPS}>
+                <path d="M8 3v3" />
+                <path d="M16 3v3" />
+                <rect x="4" y="6" width="16" height="14" rx="2" />
+                <path d="M4 10h16" />
+                <path d="M13 14h4" />
+                <path d="M15 12l2 2-2 2" />
+            </svg>
+        ),
+    },
+    {
+        key: 'Checked-In',
+        label: 'Checked-In',
+        icon: (
+            <svg {...TAB_ICON_PROPS}>
+                <path d="M14 4h6v6" />
+                <path d="M10 14L20 4" />
+                <path d="M20 14v6h-6" />
+                <path d="M4 4v16h10" />
+            </svg>
+        ),
+    },
+    {
+        key: 'On-Hold',
+        label: 'On-Hold',
+        icon: (
+            <svg {...TAB_ICON_PROPS}>
+                <path d="M8 3v3" />
+                <path d="M16 3v3" />
+                <rect x="4" y="6" width="16" height="14" rx="2" />
+                <path d="M4 10h16" />
+                <path d="M9 13h6" />
+            </svg>
+        ),
+    },
+    {
+        key: 'History',
+        label: 'History',
+        icon: (
+            <svg {...TAB_ICON_PROPS}>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v6l4 2" />
+            </svg>
+        ),
+    },
+    {
+        key: 'Discrepancies',
+        label: 'Discrepancies',
+        icon: (
+            <svg {...TAB_ICON_PROPS}>
+                <path d="M12 4l9 16H3L12 4z" />
+                <path d="M12 10v4" />
+                <path d="M12 17h.01" />
+            </svg>
+        ),
         title:
             'Reservations whose status doesn’t match their schedule color · Yellow (Travel) → Pending / Arrival / Check-In · Blue (Working) → Check-In · Green (Vacation) → On-Hold / Check-Out / Pending / Arrival · Red (Sick) → any · Light Blue (Local) → no reservation required',
+    },
+    {
+        key: 'Modification Request',
+        label: 'Modifications',
+        icon: (
+            <svg {...TAB_ICON_PROPS}>
+                <path d="M14 4h6v6" />
+                <path d="M20 4L10 14" />
+                <path d="M8 6H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" />
+                <path d="M8 16l4-.8L8.8 12 8 16z" />
+            </svg>
+        ),
+        title:
+            'Extensions: stays past original departure · Walk-Ins: walk-up requests · No-Shows: did not arrive by 07:00 next day · Schedule Discrepancy: schedule and reservation mismatch · Schedule Changes: requested date changes',
     },
 ];
 
@@ -212,6 +306,83 @@ function scheduleDiscrepancy(reservation) {
         };
     }
     return null;
+}
+
+// Statuses for reservations still awaiting arrival (not yet in-house / checked
+// out). These feed the Waitlisted and 24-Hr Arrival queues.
+const AWAITING_ARRIVAL_STATUSES = ['Pending', 'Arrival'];
+
+function parseReservationDate(value) {
+    if (!value) return null;
+    const t = Date.parse(value);
+    return Number.isNaN(t) ? null : new Date(t);
+}
+
+function startOfDay(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+// True when a reservation is expected to arrive within the next 24 hours and is
+// still awaiting check-in. Arrival strings are date-only, so the window spans
+// from the start of today through 24h from now.
+function isArrivingWithin24h(reservation, now = new Date()) {
+    if (!AWAITING_ARRIVAL_STATUSES.includes(reservation.status)) return false;
+    const arrival = parseReservationDate(reservation.arrival);
+    if (!arrival) return false;
+    const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    return arrival.getTime() >= startOfDay(now).getTime() && arrival.getTime() <= windowEnd.getTime();
+}
+
+// A reservation is overdue once it is still awaiting arrival and the clock has
+// passed 12:00 PM on the day AFTER its expected arrival without it being marked
+// in-house (Check-In). Overdue reservations roll into the Discrepancies queue
+// automatically and drop out of the Waitlisted / 24-Hr Arrival queues.
+function isArrivalOverdue(reservation, now = new Date()) {
+    if (!AWAITING_ARRIVAL_STATUSES.includes(reservation.status)) return false;
+    const arrival = parseReservationDate(reservation.arrival);
+    if (!arrival) return false;
+    const deadline = startOfDay(arrival);
+    deadline.setDate(deadline.getDate() + 1);
+    deadline.setHours(12, 0, 0, 0);
+    return now.getTime() > deadline.getTime();
+}
+
+// Maps a Reservation Operations queue tab to the reservations it surfaces.
+// Used both to filter the table and to compute the per-tab count badges so
+// the two never drift apart.
+function reservationMatchesTab(tabKey, reservation) {
+    switch (tabKey) {
+        case 'All':
+            return true;
+        case 'Waitlisted':
+            // Everything still awaiting arrival — all Pending and Arrival
+            // reservations — except those that have gone overdue (they move to
+            // Discrepancies).
+            return (
+                AWAITING_ARRIVAL_STATUSES.includes(reservation.status) &&
+                !isArrivalOverdue(reservation)
+            );
+        case '24-Hr Arrival':
+            // Awaiting reservations expected to arrive within the next 24 hours.
+            return isArrivingWithin24h(reservation) && !isArrivalOverdue(reservation);
+        case 'Checked-In':
+            return reservation.status === 'Check-In';
+        case 'On-Hold':
+            return reservation.status === 'On-Hold';
+        case 'History':
+            // Completed stays.
+            return reservation.status === 'Check-Out';
+        case 'Discrepancies':
+            // Schedule-color mismatches plus arrivals that blew past the
+            // noon-next-day in-house deadline.
+            return scheduleDiscrepancy(reservation) !== null || isArrivalOverdue(reservation);
+        case 'Modification Request':
+            return MODIFICATION_STATUSES.includes(reservation.status);
+        default:
+            return reservation.status === tabKey;
+    }
 }
 
 // Worker-shift options surfaced in the queue's Shift column.
@@ -312,18 +483,6 @@ function exampleRequestDate(seed) {
     });
 }
 
-// Statuses that have their own dedicated queue and therefore never appear
-// in the Approvals (All) tab — even if their approval is still Pending.
-//   - Check-In / Check-Out / On-Hold: their own tabs.
-//   - Walk-In / Extension / No-Show / Schedule Discrepancy / Schedule Change:
-//     live under the Modification Requests tab.
-const APPROVALS_HIDDEN_STATUSES = [
-    'Check-In',
-    'Check-Out',
-    'On-Hold',
-    ...MODIFICATION_STATUSES,
-];
-
 const SORTABLE_COLUMNS = [
     { key: 'company', label: 'Company' },
     { key: 'shift', label: 'Shift' },
@@ -367,6 +526,14 @@ const MODIFICATION_COLUMNS = [
     { key: 'notes', label: 'Notes', type: 'has' },
 ];
 
+// The split Worker name columns. Rendered as fixed leading columns (not via the
+// SORTABLE_COLUMNS map) but registered here so the sort resolver recognises
+// their keys and sorts them as plain strings.
+const WORKER_NAME_COLUMNS = [
+    { key: 'lastName', label: 'Last Name' },
+    { key: 'firstName', label: 'First Name' },
+];
+
 const STATUS_FILTER_OPTIONS = [
     'All',
     'Walk-In',
@@ -404,36 +571,6 @@ const SEED_RESERVATIONS = [
     { initials: 'KP', color: '#0ea5e9', worker: 'Karim Peters', company: 'AECOM', status: 'Schedule Change', arrival: 'May 24, 2026', departure: 'Jun 03, 2026', room: '1207 (Dorm C)', approval: 'High', allotment: 'Pending', score: 79, roomType: 'Executive', gender: 'Male', project: 'Highway 225 Upgrade', shift: 'Day', province: 'OOC', scheduleStatus: 'Green' },
 ];
 
-const APPROVAL_TREND = [
-    { h: 45, tone: 'green' },
-    { h: 52, tone: 'green' },
-    { h: 68, tone: 'green' },
-    { h: 42, tone: 'orange' },
-    { h: 72, tone: 'green' },
-    { h: 62, tone: 'green' },
-    { h: 86, tone: 'green' },
-];
-
-const NOSHOW_TREND = [38, 55, 72, 48, 80, 44, 62];
-
-const DORMS = [
-    ['Dorm A', 92, 'green'],
-    ['Dorm B', 88, 'green'],
-    ['Dorm C', 76, 'green'],
-    ['Dorm D', 74, 'orange'],
-    ["Women’s Dorm", 66, 'orange'],
-    ['Dorm E', 58, 'orange'],
-    ['Dorm F', 51, 'red'],
-];
-
-const EXTENSION_QUEUE = [
-    ['Carlos Ramirez', 'Bechtel Corp', 'High'],
-    ['Noah Wilson', 'Bechtel Corp', 'Medium'],
-    ['Mason Taylor', 'Turner Industrial', 'Medium'],
-    ['Nora Fields', 'Vertex Services', 'Medium'],
-    ['Debbie Marie Group', 'DMS', 'Low'],
-];
-
 // Canonical per-status palette. The same hue family is reused on the action
 // button and KPI widget for that status so the manager sees one color per
 // state across the whole Reservation Operations page.
@@ -463,18 +600,6 @@ const STATUS_STYLES = {
     no: 'bg-red-100 text-red-500',
 };
 
-const BAR_TONE = {
-    green: 'bg-green-600',
-    orange: 'bg-orange-500',
-    red: 'bg-red-500',
-};
-
-const PROGRESS_TONE = {
-    green: 'bg-green-600',
-    orange: 'bg-orange-500',
-    red: 'bg-red-500',
-};
-
 function statusKey(value) {
     return String(value).toLowerCase().replace(/[^a-z]/g, '');
 }
@@ -484,6 +609,17 @@ const AVATAR_COLORS = ['#2563eb', '#16a34a', '#7c3aed', '#0b66e4', '#f97316', '#
 function workerColor(id, name) {
     const seed = Number(id) || String(name || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return AVATAR_COLORS[seed % AVATAR_COLORS.length];
+}
+
+function isOnHoldExempt(reservation, policy) {
+    if (!reservation || !policy?.onHold) return false;
+    const name = String(reservation.worker || '').trim().toLowerCase();
+    const dorm = String(reservation.dorm || '').trim();
+    const exemptGuests = (policy.onHold.exemptGuests || []).map((g) => String(g).trim().toLowerCase());
+    const exemptDorms = (policy.onHold.exemptDorms || []).map((d) => String(d).trim());
+    if (name && exemptGuests.includes(name)) return true;
+    if (dorm && exemptDorms.includes(dorm)) return true;
+    return false;
 }
 
 function enrichReservation(row) {
@@ -501,6 +637,11 @@ function enrichReservation(row) {
     return {
         ...row,
         status: derivedStatus,
+        dorm:
+            row.dorm ??
+            (typeof row.room === 'string' && row.room.includes('(')
+                ? row.room.replace(/^.*\(([^)]+)\)\s*$/, '$1').trim()
+                : null),
         // Normalize room-type tiers to the canonical labels exposed in the UI:
         //   Executive · Sr. Executive · Wellsite
         // Older rows / backend payloads using 'Senior Executive' map to
@@ -508,6 +649,11 @@ function enrichReservation(row) {
         roomType: normalizeRoomType(row.roomType) || row.roomType,
         initials: row.initials || getInitials(row.worker),
         color: row.color || workerColor(row.id, row.worker),
+        // Split worker name so the queue can show — and sort by — Last Name and
+        // First Name independently. The backend value (row.firstName/lastName)
+        // wins when present; otherwise we derive from the full `worker` string.
+        firstName: row.firstName || workerFirstName(row.worker),
+        lastName: row.lastName || workerLastName(row.worker),
         // Predetermined permission: whether this reservation is authorized
         // to place their room On-Hold. Defaults to true when not provided.
         onHoldAllowed: row.onHoldAllowed ?? true,
@@ -562,6 +708,19 @@ function getInitials(name) {
         .join('') || 'JD';
 }
 
+// First token of the worker name; the remainder is treated as the last name
+// (so middle names / two-word surnames stay with the Last Name column).
+function workerFirstName(name) {
+    if (!name) return '';
+    return String(name).trim().split(/\s+/)[0] || '';
+}
+
+function workerLastName(name) {
+    if (!name) return '';
+    const parts = String(name).trim().split(/\s+/);
+    return parts.length > 1 ? parts.slice(1).join(' ') : '';
+}
+
 function Pill({ value, className = '' }) {
     const key = statusKey(value);
     const tone = STATUS_STYLES[key] || 'bg-slate-100 text-slate-500';
@@ -580,7 +739,16 @@ export default function Dashboard({
     reservations: serverReservations = [],
     assignableRooms = [],
     metricValues = {},
+    lodgePolicy = null,
+    onHoldPolicy = { onHoldEnabled: true, maxHoldDays: 7 },
 }) {
+    const policy = lodgePolicy ?? {
+        onHold: { enabled: onHoldPolicy.onHoldEnabled, maxHoldDays: onHoldPolicy.maxHoldDays },
+        noShow: { cutoffTime: '07:00', releaseRequiresApproval: true },
+        walkIn: { allowed: true, requireSupervisorApproval: true },
+        onHoldEnabled: onHoldPolicy.onHoldEnabled,
+        maxHoldDays: onHoldPolicy.maxHoldDays,
+    };
     const { auth, flash: sessionFlash, errors: pageErrors } = usePage().props;
     const userName = auth?.user?.name || 'John Doe';
     const userInitials = getInitials(userName);
@@ -605,10 +773,13 @@ export default function Dashboard({
     const [infoCardOpen, setInfoCardOpen] = useState(false);
     const [alertModal, setAlertModal] = useState({ open: false, title: '', message: '' });
     const [checkOutModalOpen, setCheckOutModalOpen] = useState(false);
+    const [onHoldModalOpen, setOnHoldModalOpen] = useState(false);
     const [removeOnHoldModalOpen, setRemoveOnHoldModalOpen] = useState(false);
     const [notesModalOpen, setNotesModalOpen] = useState(false);
     const [scheduleModRequestOpen, setScheduleModRequestOpen] = useState(false);
-    const [selectedOtherOpen, setSelectedOtherOpen] = useState(true);
+    // Collapsed by default — the "Other" actions only expand when the user
+    // clicks the Other toggle, never on their own.
+    const [selectedOtherOpen, setSelectedOtherOpen] = useState(false);
     const [extendSaving, setExtendSaving] = useState(false);
     const [extendError, setExtendError] = useState('');
     const [assignError, setAssignError] = useState('');
@@ -623,30 +794,7 @@ export default function Dashboard({
     const statusOptions = STATUS_FILTER_OPTIONS;
 
     const filtered = useMemo(() => {
-        let rows = reservations;
-        if (activeTab === 'Room Allocation') {
-            rows = rows.filter((r) => r.room === 'Unassigned' || !r.roomId);
-        } else if (activeTab === 'Room Allotment') {
-            rows = rows.filter((r) => r.allotment === 'Pending');
-        } else if (activeTab === 'Modification Request') {
-            rows = rows.filter((r) => MODIFICATION_STATUSES.includes(r.status));
-        } else if (activeTab === 'Discrepancy') {
-            rows = rows.filter((r) => scheduleDiscrepancy(r) !== null);
-        } else if (activeTab === 'All') {
-            // Approvals queue: Pending (awaiting manager approval) + Arrival
-            // (approved, awaiting check-in). Rows whose status has a dedicated
-            // queue elsewhere never show up here.
-            rows = rows.filter((r) => {
-                if (APPROVALS_HIDDEN_STATUSES.includes(r.status)) return false;
-                return (
-                    r.status === 'Arrival' ||
-                    r.status === 'Pending' ||
-                    r.approval === 'Pending'
-                );
-            });
-        } else {
-            rows = rows.filter((r) => r.status === activeTab);
-        }
+        let rows = reservations.filter((r) => reservationMatchesTab(activeTab, r));
         if (statusFilter !== 'All') rows = rows.filter((r) => r.status === statusFilter);
         if (priorityFilter !== 'All') rows = rows.filter((r) => r.approval === priorityFilter);
         if (search) {
@@ -656,12 +804,24 @@ export default function Dashboard({
         return rows;
     }, [reservations, activeTab, statusFilter, priorityFilter, search]);
 
+    // Per-tab counts for the queue tab badges. Computed against the full
+    // reservation set (not the active filter) so each badge always reflects how
+    // many rows live in that queue.
+    const tabCounts = useMemo(() => {
+        const counts = {};
+        for (const t of TABS) {
+            counts[t.key] = reservations.filter((r) => reservationMatchesTab(t.key, r)).length;
+        }
+        return counts;
+    }, [reservations]);
+
     const sortedFiltered = useMemo(() => {
         if (!sort.key) return filtered;
         // Sort metadata can come from either the default queue's column set or
         // the Modification Requests column set; first-match wins so shared keys
         // like `company` / `status` / `notes` keep their existing behavior.
         const col =
+            WORKER_NAME_COLUMNS.find((c) => c.key === sort.key) ||
             SORTABLE_COLUMNS.find((c) => c.key === sort.key) ||
             MODIFICATION_COLUMNS.find((c) => c.key === sort.key);
         if (!col) return filtered;
@@ -707,7 +867,8 @@ export default function Dashboard({
 
     function setTab(key) {
         setActiveTab(key);
-        flash(`Showing ${key === 'All' ? 'Approvals' : key} queue`);
+        const tab = TABS.find((t) => t.key === key);
+        flash(`Showing ${tab ? tab.label : key} queue`);
     }
 
     function toggleDropdown(event, index) {
@@ -789,6 +950,30 @@ export default function Dashboard({
         // Predetermined permission: block On-Hold for unauthorized reservations.
         if (action === 'On-Hold' || action === 'Convert to On-Hold') {
             const target = reservations[selectedIndex];
+            // Lodge-wide policy: on-hold disabled for all companies.
+            if (onHoldPolicy?.onHoldEnabled === false && !isOnHoldExempt(target, policy)) {
+                setAlertModal({
+                    open: true,
+                    title: 'On-Hold disabled by policy',
+                    message:
+                        'The on-hold policy does not allow companies to place rooms on hold. Update the On-Hold policy in the Policies tab to enable it.',
+                });
+                return;
+            }
+            const dormRestriction = policy.onHold?.dormRestriction?.trim();
+            if (
+                dormRestriction &&
+                target?.dorm &&
+                target.dorm !== dormRestriction &&
+                !isOnHoldExempt(target, policy)
+            ) {
+                setAlertModal({
+                    open: true,
+                    title: 'On-Hold dorm restriction',
+                    message: `On-hold is limited to ${dormRestriction} for this project. This reservation is in ${target.dorm}.`,
+                });
+                return;
+            }
             if (target && target.onHoldAllowed === false) {
                 setAlertModal({
                     open: true,
@@ -798,6 +983,10 @@ export default function Dashboard({
                 });
                 return;
             }
+            // Authorized: collect the departure + return dates before flipping
+            // the row to On-Hold (handled by submitOnHold).
+            setOnHoldModalOpen(true);
+            return;
         }
         if (action === 'Manual Assign') {
             setAssignError('');
@@ -825,14 +1014,23 @@ export default function Dashboard({
             setRemoveOnHoldModalOpen(true);
             return;
         }
+        if (action === 'Approve Reservation') {
+            const target = reservations[selectedIndex];
+            if (target?.status === 'Walk-In' && policy.walkIn?.allowed === false) {
+                setAlertModal({
+                    open: true,
+                    title: 'Walk-ins disabled by policy',
+                    message:
+                        'Walk-in reservations are not allowed under the current lodge policy. Update Walk-In rules in the Policies tab.',
+                });
+                return;
+            }
+            submitApprove();
+            return;
+        }
         setReservations((rows) => {
             const next = [...rows];
             const r = { ...next[selectedIndex] };
-            if (action === 'Approve Reservation') {
-                r.approval = 'Approved';
-                // Pending → Arrival on approval. Other statuses stay as-is.
-                if (r.status === 'Pending') r.status = 'Arrival';
-            }
             if (action === 'Arrival') {
                 // Manual mark-as-arrival: status flips to Arrival and approval
                 // is set so the row honors the Pending↔Arrival lifecycle rule
@@ -840,11 +1038,21 @@ export default function Dashboard({
                 r.status = 'Arrival';
                 r.approval = 'Approved';
             }
-            if (action === 'On-Hold') {
-                r.status = 'On-Hold';
-                if (r.allotment === 'Allotted') r.allotment = 'On-Hold';
+            if (action === 'Mark No-Show') {
+                if (policy.noShow?.releaseRequiresApproval) {
+                    r.status = 'Hold for Review';
+                    r.notes = [
+                        ...(Array.isArray(r.notes) ? r.notes : []),
+                        {
+                            author: userName,
+                            text: `No-show flagged for approval (cutoff ${policy.noShow?.cutoffTime ?? '07:00'}).`,
+                            createdAt: new Date().toISOString(),
+                        },
+                    ];
+                } else {
+                    r.status = 'No-Show';
+                }
             }
-            if (action === 'Mark No-Show') r.status = 'No-Show';
             next[selectedIndex] = r;
             flash(`${action}: ${r.worker}`);
             return next;
@@ -861,6 +1069,59 @@ export default function Dashboard({
         setCheckOutModalOpen(false);
         const display = reservations[selectedIndex]?.worker || 'worker';
         flash(`Check-Out: ${display} on ${date}`);
+    }
+
+    function submitOnHold(departureDate, returnDate, overPolicy = false) {
+        const maxDays = onHoldPolicy?.maxHoldDays ?? null;
+        const selected = reservations[selectedIndex];
+        const exempt = isOnHoldExempt(selected, policy);
+        setReservations((rows) => {
+            const next = [...rows];
+            if (!next[selectedIndex]) return rows;
+            const base = next[selectedIndex];
+
+            // Over the on-hold policy: don't place the hold outright. Escalate
+            // to the scheduling manager by routing the request into the
+            // Modification Requests queue ("Hold for Review"), preserving the
+            // requested dates and logging why it was escalated.
+            if (overPolicy && !exempt) {
+                const note = {
+                    author: userName,
+                    text:
+                        `On-hold escalated for approval: requested hold ` +
+                        `(departs ${departureDate}, returns ${returnDate}) exceeds the ` +
+                        `${maxDays}-day on-hold policy.`,
+                    createdAt: new Date().toISOString(),
+                };
+                next[selectedIndex] = {
+                    ...base,
+                    status: 'Hold for Review',
+                    onHoldDepartureDate: departureDate,
+                    onHoldReturnDate: returnDate,
+                    notes: [...(Array.isArray(base.notes) ? base.notes : []), note],
+                };
+                return next;
+            }
+
+            const r = {
+                ...base,
+                status: 'On-Hold',
+                onHoldDepartureDate: departureDate,
+                onHoldReturnDate: returnDate,
+            };
+            if (r.allotment === 'Allotted') r.allotment = 'On-Hold';
+            next[selectedIndex] = r;
+            return next;
+        });
+        setOnHoldModalOpen(false);
+        const display = reservations[selectedIndex]?.worker || 'worker';
+        if (overPolicy) {
+            flash(
+                `Hold exceeds ${maxDays}-day policy — escalated to scheduling manager for approval (Modification Requests).`,
+            );
+        } else {
+            flash(`On-Hold: ${display} · departs ${departureDate}, returns ${returnDate}`);
+        }
     }
 
     function submitRemoveOnHold(date) {
@@ -951,6 +1212,37 @@ export default function Dashboard({
         );
     }
 
+    function submitApprove() {
+        const reservation = reservations[selectedIndex];
+        if (!reservation) return;
+
+        // Local-only reservation (no persisted id, e.g. seed data): flip the
+        // approval/status directly so the demo data still advances queues.
+        if (!reservation.id) {
+            setReservations((rows) => {
+                const next = [...rows];
+                const r = { ...next[selectedIndex] };
+                r.approval = 'Approved';
+                if (r.status === 'Pending') r.status = 'Arrival';
+                next[selectedIndex] = r;
+                return next;
+            });
+            flash(`Approve Reservation: ${reservation.worker}`);
+            return;
+        }
+
+        router.post(
+            route('dashboard.approve'),
+            { reservation_id: reservation.id },
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    flash(errors.reservation || 'Unable to approve reservation.');
+                },
+            },
+        );
+    }
+
     function submitCheckIn() {
         const reservation = reservations[selectedIndex];
         if (!reservation) return;
@@ -1033,8 +1325,20 @@ export default function Dashboard({
     }
 
     useEffect(() => {
-        if (serverReservations.length) {
-            setReservations(serverReservations.map(enrichReservation));
+        if (!serverReservations.length) return;
+
+        // Keep the panel locked onto the same reservation across reloads. The
+        // rebuilt list re-sorts (rows with an assigned room sort last), so the
+        // positional selectedIndex would otherwise jump to a different row after
+        // a room assignment — making the just-assigned room look like it never
+        // landed. Re-resolve the selection by its stable id instead.
+        const previousId = reservations[selectedIndex]?.id;
+        const enriched = serverReservations.map(enrichReservation);
+        setReservations(enriched);
+
+        if (previousId != null) {
+            const nextIndex = enriched.findIndex((r) => r.id === previousId);
+            if (nextIndex !== -1) setSelectedIndex(nextIndex);
         }
     }, [serverReservations]);
 
@@ -1138,7 +1442,7 @@ export default function Dashboard({
         const counts = {
             'Pending Approvals': reservations.filter((r) => r.status === 'Pending').length,
             'Rooms to Allocate': reservations.filter(
-                (r) => r.room === 'Unassigned' || !r.roomId,
+                (r) => r.status === 'Arrival' && (r.room === 'Unassigned' || !r.roomId),
             ).length,
             'Rooms Allotted Tonight': reservations.filter((r) => r.allotment === 'Allotted').length,
             // Split format: "<already checked in today> / <total expected today>".
@@ -1155,7 +1459,10 @@ export default function Dashboard({
         }));
     }, [reservations]);
 
-    const queueTitle = activeTab === 'All' ? 'Reservation Operations Queue' : `${activeTab} Queue`;
+    const queueTitle =
+        activeTab === 'All'
+            ? 'Reservation Operations Queue'
+            : `${TABS.find((t) => t.key === activeTab)?.label ?? activeTab} Queue`;
 
     return (
         <>
@@ -1198,7 +1505,7 @@ export default function Dashboard({
                     </AppPageHeader>
 
                     <AppPageBody>
-                        <section className="grid grid-cols-[1fr_330px] items-start gap-[18px] max-[1100px]:grid-cols-1">
+                        <section className="grid grid-cols-[1fr_360px] items-start gap-[18px] max-[1100px]:grid-cols-1">
                             <div>
                                 <section className="mb-[18px] rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-4 shadow-lg shadow-blue-100/50">
                                     <div className="grid grid-cols-8 gap-2.5 max-[1450px]:grid-cols-4 max-[900px]:grid-cols-2">
@@ -1241,23 +1548,50 @@ export default function Dashboard({
                                         ))}
                                     </div>
                                 </section>
-                                <div className="overflow-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card">
-                                    <div className="flex overflow-x-auto border-b border-lx-border bg-white">
-                                        {TABS.map((t) => (
-                                            <button
-                                                key={t.key}
-                                                onClick={() => setTab(t.key)}
-                                                title={t.title || ''}
-                                                className={`flex flex-1 cursor-pointer items-center justify-center gap-2 border-b-[3px] px-3 py-4 text-sm font-bold leading-tight transition-colors ${
-                                                    activeTab === t.key
-                                                        ? 'border-lx-blue bg-[#eaf2ff] text-lx-blue'
-                                                        : 'border-transparent bg-white text-lx-ink hover:bg-[#f6faff]'
-                                                }`}
-                                            >
-                                                <span>{t.icon}</span>
-                                                <span className="whitespace-nowrap">{t.label}</span>
-                                            </button>
-                                        ))}
+                                <div className="overflow-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card min-[1101px]:sticky min-[1101px]:top-0 min-[1101px]:z-10">
+                                    {/* Interlocking chevron queue tabs (per design mock): on wide
+                                        screens each tab is clipped into an arrow and overlaps its
+                                        neighbour; below 1100px they fall back to plain rounded pills
+                                        that scroll horizontally. */}
+                                    <div className="flex gap-2 overflow-x-auto border-b border-lx-border bg-white p-3 min-[1100px]:gap-0">
+                                        {TABS.map((t, i) => {
+                                            const isActive = activeTab === t.key;
+                                            const tabTitle =
+                                                t.key === 'Modification Request'
+                                                    ? `Extensions: stays past original departure · Walk-Ins: walk-up requests · No-Shows: did not arrive by ${policy.noShow?.cutoffTime ?? '07:00'} next day · Schedule Discrepancy: schedule and reservation mismatch · Schedule Changes: requested date changes`
+                                                    : t.title || '';
+                                            const isFirst = i === 0;
+                                            const isLast = i === TABS.length - 1;
+                                            const shape = isFirst
+                                                ? 'min-[1100px]:rounded-l-2xl min-[1100px]:pr-7 min-[1100px]:[clip-path:polygon(0_0,94%_0,100%_50%,94%_100%,0_100%)]'
+                                                : isLast
+                                                  ? 'min-[1100px]:-ml-px min-[1100px]:rounded-r-2xl min-[1100px]:pl-6 min-[1100px]:[clip-path:polygon(0_0,100%_0,100%_100%,0_100%,6%_50%)]'
+                                                  : 'min-[1100px]:-ml-px min-[1100px]:pl-6 min-[1100px]:pr-7 min-[1100px]:[clip-path:polygon(0_0,94%_0,100%_50%,94%_100%,0_100%,6%_50%)]';
+                                            return (
+                                                <button
+                                                    key={t.key}
+                                                    onClick={() => setTab(t.key)}
+                                                    title={tabTitle}
+                                                    className={`relative flex h-16 min-w-[128px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-xl border px-4 transition-colors ${shape} ${
+                                                        isActive
+                                                            ? 'z-[2] border-[#2b74ff] bg-gradient-to-b from-[#1d75ff] to-[#005bff] text-white shadow-[0_10px_24px_rgba(17,97,255,0.28)]'
+                                                            : 'border-lx-border bg-white text-lx-blue hover:bg-[#f6faff]'
+                                                    }`}
+                                                >
+                                                    <span className="flex min-w-0 items-center gap-3">
+                                                        <span className="grid h-6 w-6 shrink-0 place-items-center">{t.icon}</span>
+                                                        <span className="whitespace-nowrap text-[15px] font-black leading-none">{t.label}</span>
+                                                    </span>
+                                                    <span
+                                                        className={`inline-flex h-[30px] min-w-[30px] shrink-0 items-center justify-center rounded-full px-2.5 text-sm font-black leading-none ${
+                                                            isActive ? 'bg-white/20 text-white' : 'bg-[#eef4ff] text-lx-blue'
+                                                        }`}
+                                                    >
+                                                        {tabCounts[t.key] ?? 0}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
 
                                     <div className="flex items-center border-b border-lx-border px-[18px] py-4">
@@ -1269,16 +1603,53 @@ export default function Dashboard({
                                         </div>
                                     </div>
 
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full table-fixed border-collapse min-w-[1080px]">
+                                    {/* Bounded scroll region so the column header can stay pinned to
+                                        the top of the widget while the rows scroll underneath. The
+                                        max-height keeps the whole card shorter than the viewport so it
+                                        can pin to the top of the dashboard scroll (sticky on the card). */}
+                                    <div className="max-h-[calc(100vh-210px)] overflow-auto">
+                                        <table className="w-full table-fixed border-collapse min-w-[1200px]">
                                             <thead>
                                                 <tr>
-                                                    <th className="w-[42px] border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft">
+                                                    <th className="sticky top-0 z-20 w-[42px] border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb]">
                                                         <input type="checkbox" />
                                                     </th>
-                                                    <th className="w-[190px] border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft">
-                                                        {activeTab === 'Modification Request' ? 'Reservation Worker' : 'Worker'}
-                                                    </th>
+                                                    {WORKER_NAME_COLUMNS.map((c) => {
+                                                        const isActive = sort.key === c.key;
+                                                        const arrow = isActive ? (sort.dir === 'asc' ? '▲' : '▼') : '↕';
+                                                        return (
+                                                            <th
+                                                                key={c.key}
+                                                                onClick={() => requestSort(c.key)}
+                                                                title={`Sort by ${c.label}`}
+                                                                aria-sort={
+                                                                    isActive
+                                                                        ? sort.dir === 'asc'
+                                                                            ? 'ascending'
+                                                                            : 'descending'
+                                                                        : 'none'
+                                                                }
+                                                                className="sticky top-0 z-20 w-[150px] cursor-pointer select-none border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb] hover:bg-[#eef4ff]"
+                                                            >
+                                                                {/* Offset the Last Name label by the avatar + gap (30px + 10px)
+                                                                    so the header lines up with the name text below it. */}
+                                                                <span
+                                                                    className={`inline-flex items-center gap-1 ${
+                                                                        c.key === 'lastName' ? 'pl-10' : ''
+                                                                    }`}
+                                                                >
+                                                                    {c.label}
+                                                                    <span
+                                                                        className={`text-[10px] leading-none ${
+                                                                            isActive ? 'text-lx-blue' : 'text-slate-300'
+                                                                        }`}
+                                                                    >
+                                                                        {arrow}
+                                                                    </span>
+                                                                </span>
+                                                            </th>
+                                                        );
+                                                    })}
                                                     {(activeTab === 'Modification Request'
                                                         ? MODIFICATION_COLUMNS
                                                         : SORTABLE_COLUMNS
@@ -1298,7 +1669,7 @@ export default function Dashboard({
                                                                             : 'descending'
                                                                         : 'none'
                                                                 }
-                                                                className={`select-none border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft ${
+                                                                className={`sticky top-0 z-20 select-none border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb] ${
                                                                     isSortable
                                                                         ? 'cursor-pointer hover:bg-[#eef4ff]'
                                                                         : ''
@@ -1319,7 +1690,7 @@ export default function Dashboard({
                                                             </th>
                                                         );
                                                     })}
-                                                    <th className="w-[85px] border-b border-lx-line bg-[#fbfdff] p-3 text-center text-xs font-black text-lx-ink-soft">
+                                                    <th className="sticky top-0 z-20 w-[85px] border-b border-lx-line bg-[#fbfdff] p-3 text-center text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb]">
                                                         {activeTab === 'Modification Request' ? 'Open' : 'Action'}
                                                     </th>
                                                 </tr>
@@ -1347,13 +1718,15 @@ export default function Dashboard({
                                                             <td className="border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">
                                                                 <div className="flex items-center gap-2.5 font-extrabold">
                                                                     <span
-                                                                        className="grid h-[30px] w-[30px] place-items-center rounded-full text-xs font-black text-white"
-                                                                        style={{ background: r.color }}
+                                                                        className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-lx-blue text-xs font-black text-white"
                                                                     >
                                                                         {r.initials}
                                                                     </span>
-                                                                    {r.worker}
+                                                                    {r.lastName || r.worker}
                                                                 </div>
+                                                            </td>
+                                                            <td className="border-b border-lx-line p-3 align-middle text-[13px] font-extrabold text-lx-ink">
+                                                                {r.firstName}
                                                             </td>
                                                             {activeTab === 'Modification Request' ? (
                                                                 <>
@@ -1468,103 +1841,6 @@ export default function Dashboard({
                                     </div>
                                 </div>
 
-                                <div className="mt-[18px] grid grid-cols-5 gap-3.5 max-[1450px]:grid-cols-2">
-                                    <div className="min-h-[210px] rounded-2xl border border-lx-border bg-white p-4 shadow-lx-soft">
-                                        <h4 className="mb-3 flex justify-between text-sm font-black text-lx-navy">
-                                            Approval Trend (7 Days) <span>ⓘ</span>
-                                        </h4>
-                                        <div className="flex h-[125px] items-end gap-2.5 pt-3.5">
-                                            {APPROVAL_TREND.map((b, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`flex-1 rounded-t-md ${BAR_TONE[b.tone]}`}
-                                                    style={{ height: `${b.h}%` }}
-                                                />
-                                            ))}
-                                        </div>
-                                        <a className="text-xs font-black text-lx-blue">View full report</a>
-                                    </div>
-
-                                    <div className="min-h-[210px] rounded-2xl border border-lx-border bg-white p-4 shadow-lx-soft">
-                                        <h4 className="mb-3 flex justify-between text-sm font-black text-lx-navy">
-                                            Room Utilization by Dorm / Zone <span>ⓘ</span>
-                                        </h4>
-                                        <div>
-                                            {DORMS.map(([name, pct, tone]) => (
-                                                <div key={name} className="my-3">
-                                                    <div className="mb-1.5 flex justify-between text-xs font-extrabold text-lx-ink">
-                                                        <span>{name}</span>
-                                                        <span>{pct}%</span>
-                                                    </div>
-                                                    <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-                                                        <div className={`h-full rounded-full ${PROGRESS_TONE[tone]}`} style={{ width: `${pct}%` }} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <Link href={route('room-utilization')} className="text-xs font-black text-lx-blue">
-                                            View all utilization
-                                        </Link>
-                                    </div>
-
-                                    <div className="min-h-[210px] rounded-2xl border border-lx-border bg-white p-4 shadow-lx-soft">
-                                        <h4 className="mb-3 flex justify-between text-sm font-black text-lx-navy">
-                                            Extension Queue
-                                            <span className="rounded-full bg-[#eaf2ff] px-2.5 py-1 text-xs text-lx-blue">28</span>
-                                        </h4>
-                                        <div className="grid gap-2">
-                                            {EXTENSION_QUEUE.map(([name, company, prio]) => (
-                                                <div key={name} className="flex justify-between text-xs text-lx-ink">
-                                                    <span>
-                                                        {name}
-                                                        <br />
-                                                        <small>{company}</small>
-                                                    </span>
-                                                    <Pill value={prio} />
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <a className="text-xs font-black text-lx-blue">View all extensions</a>
-                                    </div>
-
-                                    <div className="min-h-[210px] rounded-2xl border border-lx-border bg-white p-4 shadow-lx-soft">
-                                        <h4 className="mb-3 flex justify-between text-sm font-black text-lx-navy">
-                                            Walk-In Activity
-                                            <span className="rounded-full bg-[#eaf2ff] px-2.5 py-1 text-xs text-lx-blue">24</span>
-                                        </h4>
-                                        <div
-                                            className="mx-auto my-3 grid h-[112px] w-[112px] place-items-center rounded-full"
-                                            style={{
-                                                background:
-                                                    'conic-gradient(#0b66e4 0 58%, #7c3aed 58% 83%, #f97316 83% 100%)',
-                                            }}
-                                        >
-                                            <div className="grid h-[72px] w-[72px] place-items-center rounded-full bg-white text-center text-xs font-black text-lx-navy">
-                                                24
-                                                <br />
-                                                <small>Today</small>
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-between text-xs text-lx-ink">
-                                            <span>vs Yesterday</span>
-                                            <strong className="text-red-500">↑ 14.3%</strong>
-                                        </div>
-                                        <a className="text-xs font-black text-lx-blue">View walk-in list</a>
-                                    </div>
-
-                                    <div className="min-h-[210px] rounded-2xl border border-lx-border bg-white p-4 shadow-lx-soft">
-                                        <h4 className="mb-3 flex justify-between text-sm font-black text-lx-navy">
-                                            No-Show Trend (7 Days) <span>ⓘ</span>
-                                        </h4>
-                                        <div className="flex h-[125px] items-end gap-2.5 pt-3.5">
-                                            {NOSHOW_TREND.map((h, i) => (
-                                                <div key={i} className="flex-1 rounded-t-md bg-red-500" style={{ height: `${h}%` }} />
-                                            ))}
-                                        </div>
-                                        <a className="text-xs font-black text-lx-blue">View no-shows report</a>
-                                    </div>
-                                </div>
-
                                 <div className="mt-[18px] grid grid-cols-5 gap-3 rounded-2xl border border-lx-border bg-white px-4 py-3 text-xs font-extrabold text-lx-ink max-[1100px]:grid-cols-1">
                                     {[
                                         'System Health: Operational',
@@ -1584,187 +1860,17 @@ export default function Dashboard({
                             <aside
                                 className={`sticky top-4 self-start max-h-[calc(100vh-150px)] ${
                                     selectedOtherOpen ? 'overflow-y-auto' : 'overflow-y-hidden'
-                                } overflow-x-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card max-[1100px]:static max-[1100px]:max-h-none max-[1100px]:overflow-visible`}
+                                } overflow-x-hidden max-[1100px]:static max-[1100px]:max-h-none max-[1100px]:overflow-visible`}
                             >
-                                {selected ? (
-                                    <div className="space-y-3 p-5">
-                                        <div className="relative flex items-start gap-4">
-                                            <div
-                                                className="grid h-16 w-16 shrink-0 place-items-center rounded-full text-xl font-black text-white shadow-sm"
-                                                style={{ background: selected.color }}
-                                            >
-                                                {selected.initials}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <h3 className="m-0 truncate text-2xl font-black leading-tight text-lx-navy">
-                                                    {selected.worker}
-                                                </h3>
-                                                <p className="m-0 mt-0.5 text-base font-bold text-slate-500">
-                                                    {selected.company}
-                                                </p>
-                                                <div className="mt-3">
-                                                    <Pill value={selected.status} className="px-3 py-1.5 text-sm" />
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                title="Pin selected reservation"
-                                                className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-xl text-slate-500 hover:bg-[#f4f8ff]"
-                                            >
-                                                📌
-                                            </button>
-                                        </div>
-
-                                        <div className="border-t border-lx-line" />
-
-                                        <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm text-lx-ink">
-                                            {[
-                                                ['Stay Dates', `${selected.arrival} – ${selected.departure}`],
-                                                ['Room Type', selected.roomType],
-                                                ['Assigned', selected.room],
-                                                ['AI Suggested Room', selected.aiRoom || '—'],
-                                                ['Approval', selected.approval],
-                                            ].map(([k, v]) => (
-                                                <div key={k} className="contents">
-                                                    <span className="font-bold text-slate-500">{k}</span>
-                                                    <span className="truncate text-right font-black text-lx-navy">{v}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="rounded-2xl border border-lx-border bg-white p-3 shadow-sm">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-3xl text-violet-600">✦</span>
-                                                    <div>
-                                                        <strong className="block text-base text-lx-navy">AI Recommendation</strong>
-                                                        {selected.aiRoom ? (
-                                                            <span className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[#eaf2ff] px-3 py-1 text-sm font-black text-lx-blue">
-                                                                🛏️ {selected.aiRoom}
-                                                            </span>
-                                                        ) : null}
-                                                    </div>
-                                                </div>
-                                                <div
-                                                    className="grid h-[64px] w-[64px] shrink-0 place-items-center rounded-full"
-                                                    style={{
-                                                        background: `conic-gradient(#16a34a 0 ${selected.score}%, #e5e7eb ${selected.score}% 100%)`,
-                                                    }}
-                                                >
-                                                    <div className="grid h-[50px] w-[50px] place-items-center rounded-full bg-white text-center text-xs font-black text-lx-navy">
-                                                        <span>{selected.score}%</span>
-                                                        <small className="-mt-2 text-[10px] font-bold text-slate-500">Match</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <p className="mt-2 text-xs font-semibold text-lx-ink">
-                                                {selected.aiRoom
-                                                    ? '● Best match for location, preferences, and housekeeping flow.'
-                                                    : '● No assignable room is currently available for this reservation.'}
-                                            </p>
-                                            {/* Assign control lives inside the AI Recommendation card so the
-                                                AI/Manual choice sits right next to the suggested room. */}
-                                            <div
-                                                role="group"
-                                                aria-label="Assign room"
-                                                className="mt-3 grid h-12 w-full grid-cols-2 overflow-hidden rounded-[10px] border border-lx-blue bg-white text-base font-black"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    onClick={() => runAction('AI Assign')}
-                                                    disabled={assignSaving}
-                                                    title={selected.aiRoom ? `AI suggests room ${selected.aiRoom}` : undefined}
-                                                    className="flex cursor-pointer flex-col items-center justify-center gap-0.5 border-0 border-r border-lx-blue bg-lx-blue px-3 leading-tight text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                                >
-                                                    <span>🤖 AI Assign</span>
-                                                    {selected.aiRoom ? (
-                                                        <span className="text-[10px] font-bold text-blue-100">
-                                                            → {selected.aiRoom}
-                                                        </span>
-                                                    ) : null}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => runAction('Manual Assign')}
-                                                    disabled={assignSaving}
-                                                    className="cursor-pointer border-0 bg-white px-3 text-lx-blue transition-colors hover:bg-[#eef6ff] disabled:cursor-not-allowed disabled:opacity-60"
-                                                >
-                                                    🛏️ Manual Assign
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <button onClick={() => runAction('Approve Reservation')} className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-[10px] border-0 bg-green-600 px-3 text-base font-black text-white shadow-sm">
-                                                <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-white/80 text-xs">✓</span>
-                                                Approve {selected.approval === 'Approved' ? '(Already Approved)' : ''}
-                                            </button>
-                                            <button
-                                                onClick={() => runAction('Check In Worker')}
-                                                disabled={checkInSaving}
-                                                className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-[10px] border border-emerald-100 bg-emerald-50 px-3 text-base font-black text-emerald-600 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                            >
-                                                {checkInSaving ? 'Checking in…' : '♙ Check In'}
-                                            </button>
-                                            <button onClick={() => runAction('On-Hold')} className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-[10px] border border-amber-100 bg-amber-50 px-3 text-base font-black text-amber-600 shadow-sm hover:bg-amber-100">
-                                                ⏸️ On-Hold
-                                            </button>
-                                            <button onClick={() => runAction('Check Out Worker')} className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-[10px] border border-violet-100 bg-violet-50 px-3 text-base font-black text-violet-600 shadow-sm hover:bg-violet-100">
-                                                ⎋ Check Out
-                                            </button>
-                                            <div
-                                                ref={otherSectionRef}
-                                                className="overflow-hidden rounded-[10px] border border-lx-border bg-white"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setSelectedOtherOpen((open) => !open)}
-                                                    className="relative flex h-12 w-full cursor-pointer items-center justify-center gap-3 border-0 bg-slate-100 px-3 text-base font-black text-slate-600 hover:bg-slate-200"
-                                                >
-                                                    <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-200 text-sm text-slate-600">•••</span>
-                                                    Other
-                                                    <span
-                                                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${selectedOtherOpen ? 'rotate-180' : ''}`}
-                                                    >
-                                                        ⌃
-                                                    </span>
-                                                </button>
-                                                {selectedOtherOpen && (
-                                                    <div className="divide-y divide-lx-line bg-white p-1.5">
-                                                        {[
-                                                            ['📍', 'Arrival', 'Arrival'],
-                                                            ['⏸️', 'Remove On-Hold', 'Remove On-Hold'],
-                                                            ['📅', 'Extend Stay', 'Extend Stay'],
-                                                            ['🚫', 'No-Show', 'Mark No-Show'],
-                                                            ['❌', 'Reject / Hold for Review', 'Reject / Hold for Review'],
-                                                            ['➕', 'New Reservation', 'New Reservation'],
-                                                            ['🧾', 'Add Notes', 'Add Notes'],
-                                                        ].map(([icon, label, action]) => (
-                                                            <button
-                                                                key={label}
-                                                                type="button"
-                                                                onClick={() => runAction(action)}
-                                                                className="flex w-full cursor-pointer items-center gap-3 rounded-lg border-0 bg-white px-3 py-2.5 text-left text-sm font-bold text-lx-navy hover:bg-[#f4f8ff]"
-                                                            >
-                                                                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eef4ff] text-lg">
-                                                                    {icon}
-                                                                </span>
-                                                                <span className="flex-1">{label}</span>
-                                                                {['Remove On-Hold', 'Extend Stay', 'Add Notes'].includes(label) ? (
-                                                                    <span className="text-lg text-slate-400">›</span>
-                                                                ) : null}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="px-[18px] py-8 text-center text-sm font-bold text-slate-500">
-                                        Select a reservation to view details and actions.
-                                    </div>
-                                )}
+                                <ReservationControlPanel
+                                    selected={selected}
+                                    onAction={runAction}
+                                    assignSaving={assignSaving}
+                                    checkInSaving={checkInSaving}
+                                    otherOpen={selectedOtherOpen}
+                                    onToggleOther={() => setSelectedOtherOpen((open) => !open)}
+                                    otherSectionRef={otherSectionRef}
+                                />
                             </aside>
                         </section>
                     </AppPageBody>
@@ -1855,6 +1961,20 @@ export default function Dashboard({
                 label="Check-out date"
                 confirmLabel="Confirm Check-Out"
                 confirmTone="bg-violet-600 hover:bg-violet-700"
+            />
+
+            <OnHoldModal
+                open={onHoldModalOpen}
+                onClose={() => setOnHoldModalOpen(false)}
+                onConfirm={submitOnHold}
+                reservation={selected}
+                maxHoldDays={
+                    isOnHoldExempt(selected, policy)
+                        ? null
+                        : onHoldPolicy?.onHoldEnabled
+                          ? onHoldPolicy?.maxHoldDays ?? null
+                          : null
+                }
             />
 
             <DateConfirmModal

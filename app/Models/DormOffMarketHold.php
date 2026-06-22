@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
@@ -13,9 +14,12 @@ use Illuminate\Support\Facades\Schema;
  */
 class DormOffMarketHold extends Model
 {
+    use BelongsToUser;
+
     protected $table = 'dorm_off_market_holds';
 
     protected $fillable = [
+        'user_id',
         'portal_dorm_id',
         'returned_at',
         'expected_return_at',

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export default function AddReservationModal({ open, onClose, reservationAddPath = '/reservations/add' }) {
+export default function AddReservationModal({ open, onClose, onReservationAdded, reservationAddPath = '/reservations/add' }) {
     const [url, setUrl] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -65,14 +65,18 @@ export default function AddReservationModal({ open, onClose, reservationAddPath 
 
         function onMessage(event) {
             if (event?.data?.type === 'lodgex:reservation-added') {
-                // Brief delay so the success message in the iframe is visible first.
-                window.setTimeout(() => onClose?.(), 1200);
+                // Brief delay so the success message in the iframe is visible first,
+                // then close the modal and refresh the workforce widget.
+                window.setTimeout(() => {
+                    onReservationAdded?.();
+                    onClose?.();
+                }, 1200);
             }
         }
 
         window.addEventListener('message', onMessage);
         return () => window.removeEventListener('message', onMessage);
-    }, [open, onClose]);
+    }, [open, onClose, onReservationAdded]);
 
     if (!open) {
         return null;
@@ -83,9 +87,9 @@ export default function AddReservationModal({ open, onClose, reservationAddPath 
             <div className="flex min-h-0 w-full max-w-[96vw] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div className="flex items-center justify-between gap-3 border-b border-lx-border px-4 py-3 md:px-5">
                     <div>
-                        <h2 className="m-0 text-base font-black text-lx-navy md:text-lg">Add Reservation</h2>
+                        <h2 className="m-0 text-base font-black text-lx-navy md:text-lg">Add Single Worker</h2>
                         <p className="m-0 text-xs font-bold text-lx-ink-soft">
-                            Same flow as camp.site/reservations/add — all steps open here.
+                            Add a worker to the Accommodation Workforce schedule — all steps open here.
                         </p>
                     </div>
                     <button

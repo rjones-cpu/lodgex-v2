@@ -29,6 +29,14 @@ const PROGRESS_TONE = {
     red: 'bg-red-500',
 };
 
+// Matches Reservation Operations metric card styling.
+const METRIC_PALETTE = {
+    border: 'border-blue-100',
+    bar: 'from-blue-600 to-blue-500',
+    iconBg: 'bg-blue-50',
+    iconText: 'text-blue-600',
+};
+
 function getInitials(name) {
     if (!name) return 'JD';
     return (
@@ -66,7 +74,7 @@ export default function RoomUtilizationManager({
     const userInitials = getInitials(userName);
 
     const [activeTab, setActiveTab] = useState('overview');
-    const [rooms] = useState(initialRooms);
+    const [rooms, setRooms] = useState(initialRooms);
     const [recommendations, setRecommendations] = useState(aiRecommendations);
     const [approvals, setApprovals] = useState(pendingApprovals);
     const [selectedRecId, setSelectedRecId] = useState(aiRecommendations[0]?.id ?? null);
@@ -95,6 +103,36 @@ export default function RoomUtilizationManager({
         }
         return rows;
     }, [rooms, statusFilter, dormFilter, search]);
+
+    // Badge counts shown on each tab, derived from the dataset that tab renders
+    // so the numbers always reflect live data rather than hard-coded values.
+    const tabCounts = useMemo(
+        () => ({
+            overview: recommendations.length,
+            status: rooms.length,
+            forecast: forecastDays.length,
+            onhold: onHoldReview.length,
+            release: releaseCandidates.length,
+            overflow: overflowOptions.length,
+            housekeeping: housekeepingPriority.length,
+            maintenance: maintenanceImpact.length,
+            allotment: contractorAllotments.length,
+            ai: recommendations.length,
+            approvals: approvals.length,
+        }),
+        [
+            recommendations,
+            rooms,
+            forecastDays,
+            onHoldReview,
+            releaseCandidates,
+            overflowOptions,
+            housekeepingPriority,
+            maintenanceImpact,
+            contractorAllotments,
+            approvals,
+        ],
+    );
 
     const selectedRec = recommendations.find((r) => r.id === selectedRecId) || recommendations[0] || null;
 
@@ -155,6 +193,10 @@ export default function RoomUtilizationManager({
     }, [aiRecommendations]);
 
     useEffect(() => {
+        setRooms(initialRooms);
+    }, [initialRooms]);
+
+    useEffect(() => {
         setApprovals(pendingApprovals);
     }, [pendingApprovals]);
 
@@ -193,6 +235,8 @@ export default function RoomUtilizationManager({
     useEffect(() => () => toastTimeoutRef.current && clearTimeout(toastTimeoutRef.current), []);
 
     const tabLabel = UTILIZATION_TABS.find((t) => t.key === activeTab)?.label || 'Overview';
+    const activeTabCount =
+        activeTab === 'status' ? filteredRooms.length : (tabCounts[activeTab] ?? 0);
 
     return (
         <>
@@ -233,56 +277,99 @@ export default function RoomUtilizationManager({
                     </AppPageHeader>
 
                     <AppPageBody>
-                        <section className="mb-[18px] grid grid-cols-[repeat(8,minmax(140px,1fr))] gap-3.5 max-[1450px]:grid-cols-4">
-                            {metrics.map((m) => (
-                                <div
-                                    key={m.label}
-                                    className="min-h-[110px] rounded-2xl border border-lx-border bg-white p-[18px] shadow-lx-soft"
-                                >
-                                    <div className="text-[13px] font-extrabold text-lx-ink">
-                                        {m.icon} {m.label}
-                                    </div>
-                                    <div className="mt-3.5 text-[28px] font-black text-lx-navy">{m.value}</div>
+                        <section className="mb-[18px] rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-4 shadow-lg shadow-blue-100/50">
+                            <div className="grid grid-cols-8 gap-2.5 max-[1450px]:grid-cols-4 max-[900px]:grid-cols-2">
+                                {metrics.map((m) => (
                                     <div
-                                        className={`mt-1 text-xs font-extrabold ${
-                                            m.direction === 'up' ? 'text-green-600' : 'text-red-500'
-                                        }`}
+                                        key={m.label}
+                                        className={`relative h-[108px] min-w-0 overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md ${METRIC_PALETTE.border}`}
                                     >
-                                        {m.change}
+                                        <div
+                                            aria-hidden
+                                            className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${METRIC_PALETTE.bar}`}
+                                        />
+                                        <div className="flex h-full flex-col justify-between py-3 pl-4 pr-3">
+                                            <div className="flex min-w-0 items-start gap-2">
+                                                <div
+                                                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-xl text-xs font-black ${METRIC_PALETTE.iconBg} ${METRIC_PALETTE.iconText}`}
+                                                >
+                                                    {m.icon}
+                                                </div>
+                                                <div className="line-clamp-2 break-words text-[12px] font-bold leading-tight text-slate-700">
+                                                    {m.label}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-end justify-between gap-2">
+                                                <div className="text-3xl font-black leading-none tracking-tight text-slate-950">
+                                                    {m.value}
+                                                </div>
+                                                <div
+                                                    className={`whitespace-nowrap text-[10px] font-bold ${
+                                                        m.direction === 'up' ? 'text-emerald-600' : 'text-red-600'
+                                                    }`}
+                                                >
+                                                    {m.change}
+                                                </div>
+                                            </div>
+                                            <div className="text-[10px] text-slate-400">current status</div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </section>
 
                         <section className="grid grid-cols-[1fr_340px] items-start gap-[18px] max-[1100px]:grid-cols-1">
                             <div>
                                 <div className="overflow-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card">
-                                    <div className="grid grid-cols-5 border-b border-lx-border bg-white max-[1450px]:grid-cols-3 max-[900px]:grid-cols-2">
-                                        {UTILIZATION_TABS.map((t) => (
-                                            <button
-                                                key={t.key}
-                                                type="button"
-                                                onClick={() => setTab(t.key)}
-                                                className={`flex items-center justify-center gap-2 border-b-[3px] bg-white px-2 py-3.5 text-xs font-extrabold hover:bg-[#f6faff] max-[900px]:text-[11px] ${
-                                                    activeTab === t.key
-                                                        ? 'border-lx-blue text-lx-blue'
-                                                        : 'border-transparent text-lx-ink'
-                                                }`}
-                                            >
-                                                <span>{t.icon}</span>
-                                                <span>{t.label}</span>
-                                            </button>
-                                        ))}
+                                    {/* Interlocking chevron tabs — compact sizing so all 11 fit on one row. */}
+                                    <div className="flex gap-2 overflow-x-auto border-b border-lx-border bg-white p-2 min-[1100px]:gap-0 min-[1100px]:overflow-x-hidden">
+                                        {UTILIZATION_TABS.map((t, i) => {
+                                            const isActive = activeTab === t.key;
+                                            const isFirst = i === 0;
+                                            const isLast = i === UTILIZATION_TABS.length - 1;
+                                            const shape = isFirst
+                                                ? 'min-[1100px]:rounded-l-xl min-[1100px]:pr-4 min-[1100px]:[clip-path:polygon(0_0,96%_0,100%_50%,96%_100%,0_100%)]'
+                                                : isLast
+                                                  ? 'min-[1100px]:-ml-px min-[1100px]:rounded-r-xl min-[1100px]:pl-3 min-[1100px]:[clip-path:polygon(0_0,100%_0,100%_100%,0_100%,4%_50%)]'
+                                                  : 'min-[1100px]:-ml-px min-[1100px]:pl-3 min-[1100px]:pr-4 min-[1100px]:[clip-path:polygon(0_0,96%_0,100%_50%,96%_100%,0_100%,4%_50%)]';
+                                            return (
+                                                <button
+                                                    key={t.key}
+                                                    type="button"
+                                                    title={t.label}
+                                                    onClick={() => setTab(t.key)}
+                                                    className={`relative flex h-11 min-w-0 flex-1 cursor-pointer items-center justify-between gap-1 rounded-lg border px-2 transition-colors min-[1100px]:h-12 min-[1100px]:px-2.5 ${shape} ${
+                                                        isActive
+                                                            ? 'z-[2] border-[#2b74ff] bg-gradient-to-b from-[#1d75ff] to-[#005bff] text-white shadow-[0_8px_18px_rgba(17,97,255,0.22)]'
+                                                            : 'border-lx-border bg-white text-lx-blue hover:bg-[#f6faff]'
+                                                    }`}
+                                                >
+                                                    <span className="flex min-w-0 items-center gap-1.5">
+                                                        <span className="grid h-4 w-4 shrink-0 place-items-center text-[13px] leading-none">
+                                                            {t.icon}
+                                                        </span>
+                                                        <span className="truncate text-[11px] font-black leading-tight min-[1100px]:text-xs">
+                                                            {t.label}
+                                                        </span>
+                                                    </span>
+                                                    <span
+                                                        className={`ml-0.5 inline-flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-black leading-none min-[1100px]:h-[22px] min-[1100px]:min-w-[22px] min-[1100px]:px-1.5 min-[1100px]:text-[11px] ${
+                                                            isActive ? 'bg-white/20 text-white' : 'bg-[#eef4ff] text-lx-blue'
+                                                        }`}
+                                                    >
+                                                        {tabCounts[t.key] ?? 0}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
 
                                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-lx-border px-[18px] py-4">
                                         <div className="text-base font-black text-lx-navy">
                                             {tabLabel}
-                                            {activeTab === 'status' && (
-                                                <span className="ml-1.5 inline-block rounded-full bg-[#eaf2ff] px-2.5 py-1 text-xs font-bold text-lx-blue">
-                                                    {filteredRooms.length}
-                                                </span>
-                                            )}
+                                            <span className="ml-1.5 inline-block rounded-full bg-[#eaf2ff] px-2.5 py-1 text-xs font-bold text-lx-blue">
+                                                {activeTabCount}
+                                            </span>
                                         </div>
                                         {activeTab === 'status' && (
                                             <div className="flex flex-wrap items-center gap-2.5">

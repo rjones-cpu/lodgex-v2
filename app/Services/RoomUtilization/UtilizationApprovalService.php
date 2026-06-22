@@ -22,7 +22,9 @@ class UtilizationApprovalService
     public function submitReleaseList(array $candidates, User $user): UtilizationApprovalRequest
     {
         $rooms = collect($candidates)->pluck('room')->sort()->values()->all();
-        $fingerprint = 'room_release:'.now()->toDateString().':'.hash('sha256', implode(',', $rooms));
+        // Fold the descriptive parts into the hash so the value fits the 64-char
+        // fingerprint column while keeping the per-day, per-room-set dedupe key.
+        $fingerprint = hash('sha256', 'room_release:'.now()->toDateString().':'.implode(',', $rooms));
 
         $highRisk = collect($candidates)->contains(fn (array $c) => in_array($c['risk'] ?? '', ['High', 'Critical'], true));
 

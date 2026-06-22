@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 
 class HkScheduleFeed extends Model
 {
+    use BelongsToUser;
+
     protected $table = 'hk_schedule_feeds';
 
     protected $fillable = [
+        'user_id',
         'source',
         'title',
         'effective_date',

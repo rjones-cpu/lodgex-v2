@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LodgePolicy;
 use App\Models\Reservation;
 use App\Models\Room;
+use App\Support\LodgePolicyPresenter;
+use App\Services\AccommodationWorkforce\WorkforceReservationSyncService;
 use App\Services\RoomUtilization\ReservationCheckInService;
 use App\Services\RoomUtilization\ReservationExtendStayService;
 use App\Services\RoomUtilization\RoomAiMatchingService;
@@ -25,15 +28,31 @@ class DashboardController extends Controller
         private readonly ReservationCheckInService $checkInService,
         private readonly ReservationExtendStayService $extendStayService,
         private readonly RoomAiMatchingService $aiMatching,
+        private readonly WorkforceReservationSyncService $workforceSync,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        // Mirror any Accommodation Workforce additions into the local reservation
+        // queue before rendering (cached + fail-soft inside the service).
+        if ($user = $request->user()) {
+            $this->workforceSync->syncForUser($user);
+        }
+
+        $policy = LodgePolicy::forCurrentUser();
+        $lodgePolicy = LodgePolicyPresenter::present($policy);
+
         return Inertia::render('Dashboard', [
             'reservations' => $this->buildReservations(),
             'assignableRooms' => $this->buildAssignableRooms(),
             'metricValues' => $this->buildMetricValues(),
             'lastUpdated' => now()->format('M j, Y g:i A'),
+            'lodgePolicy' => $lodgePolicy,
+            // Backward-compatible alias for on-hold modal wiring.
+            'onHoldPolicy' => [
+                'onHoldEnabled' => $lodgePolicy['onHoldEnabled'],
+                'maxHoldDays' => $lodgePolicy['maxHoldDays'],
+            ],
         ]);
     }
 
@@ -135,6 +154,29 @@ class DashboardController extends Controller
         );
     }
 
+    public function approve(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'reservation_id' => ['required', 'integer', 'exists:reservations,id'],
+        ]);
+
+        $reservation = Reservation::query()
+            ->with(['worker'])
+            ->findOrFail($validated['reservation_id']);
+
+        $reservation->approval_status = 'Approved';
+        // Approving a pending reservation moves it into the Arrival lane so it
+        // advances from the Approvals queue to Room Allocation.
+        if ($reservation->status === 'Pending') {
+            $reservation->status = 'Arrival';
+        }
+        $reservation->save();
+
+        $workerName = $reservation->worker?->name ?? 'worker';
+
+        return redirect()->back()->with('toast', "{$workerName} approved.");
+    }
+
     public function checkInWorker(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -200,11 +242,15 @@ class DashboardController extends Controller
         // recommendation in memory instead of re-querying per reservation.
         $assignablePool = $this->aiMatching->assignableRooms();
 
+        // Unassigned rooms surface first so "Rooms to Allocate" is prioritised,
+        // but the cap must stay well above the active reservation count: a low
+        // limit silently truncates the assigned-room rows (which sort last),
+        // dropping reservations out of every queue once they get a room.
         return Reservation::query()
             ->with(['worker', 'room'])
             ->orderByRaw('CASE WHEN room_id IS NULL THEN 0 ELSE 1 END')
             ->orderBy('arrival_date')
-            ->limit(75)
+            ->limit(500)
             ->get()
             ->map(fn (Reservation $reservation) => $this->formatReservation($reservation, $assignablePool))
             ->values()
@@ -234,6 +280,7 @@ class DashboardController extends Controller
             'arrivalDate' => $reservation->arrival_date?->format('Y-m-d'),
             'departureDate' => $reservation->departure_date?->format('Y-m-d'),
             'room' => $room ? "{$room->number} ({$room->dorm})" : 'Unassigned',
+            'dorm' => $room?->dorm,
             'roomId' => $room?->id,
             'aiRoom' => $recommended ? "{$recommended->number} ({$recommended->dorm})" : null,
             'aiRoomId' => $recommended?->id,

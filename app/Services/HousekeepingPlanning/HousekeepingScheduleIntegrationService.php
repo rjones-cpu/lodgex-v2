@@ -6,6 +6,8 @@ use App\Models\HkForecast;
 use App\Models\HkScheduleFeed;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class HousekeepingScheduleIntegrationService
 {
@@ -89,6 +91,125 @@ class HousekeepingScheduleIntegrationService
     public function recent(int $limit = 6): Collection
     {
         return HkScheduleFeed::query()->latest('received_at')->limit($limit)->get();
+    }
+
+    /**
+     * Per-day housekeeper headcount from the latest Accommodation Workforce feed, keyed by
+     * Y-m-d. Empty when the feed has not been ingested or carries no day breakdown.
+     *
+     * @return array<string, int>
+     */
+    public function liveHousekeeperCounts(): array
+    {
+        $feed = HkScheduleFeed::query()
+            ->where('source', 'housekeeping_schedule')
+            ->latest('received_at')
+            ->first();
+
+        if (! $feed || ! is_array($feed->payload)) {
+            return [];
+        }
+
+        $counts = [];
+        foreach (($feed->payload['days'] ?? []) as $day) {
+            if (is_array($day) && isset($day['date'])) {
+                $counts[(string) $day['date']] = (int) ($day['housekeepers'] ?? 0);
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Live housekeeper headcount for a single date, or null when the feed has no entry for it.
+     */
+    public function liveHousekeeperCountForDate(Carbon $date): ?int
+    {
+        return $this->liveHousekeeperCounts()[$date->toDateString()] ?? null;
+    }
+
+    /**
+     * Pull the live housekeeper headcount from the Accommodation Workforce scheduling app and
+     * upsert it as the "Housekeeping Schedule" feed. Cached for 10 minutes so a normal page load
+     * does not hit the remote API every time, and fails soft (keeps the last feed) when the
+     * scheduling app is unreachable or the integration key is not configured.
+     */
+    public function syncWorkforceHousekeepingFeed(int $days = 7): ?HkScheduleFeed
+    {
+        $existing = HkScheduleFeed::query()
+            ->where('source', 'housekeeping_schedule')
+            ->latest('received_at')
+            ->first();
+
+        if ($existing && $existing->received_at && $existing->received_at->gt(now()->subMinutes(10))) {
+            return $existing;
+        }
+
+        $key = config('accommodation_workforce.integration_key');
+        if (empty($key)) {
+            return $existing;
+        }
+
+        $apiBase = rtrim((string) config(
+            'accommodation_workforce.scheduling_api_base',
+            config('accommodation_workforce.scheduling_base'),
+        ), '/');
+        $path = config('accommodation_workforce.housekeeping_schedule_path', '/api/integrations/lodgex/housekeeping-schedule');
+
+        $headers = ['X-Lodgex-Key' => (string) $key];
+        $hostHeader = config('accommodation_workforce.scheduling_host_header');
+        if (! empty($hostHeader)) {
+            $headers['Host'] = (string) $hostHeader;
+        }
+
+        try {
+            $response = Http::timeout(5)
+                ->withHeaders($headers)
+                ->acceptJson()
+                ->get($apiBase.$path, ['days' => $days]);
+
+            if ($response->failed()) {
+                return $existing;
+            }
+
+            $data = $response->json();
+        } catch (\Throwable $e) {
+            Log::warning('HousekeepingScheduleIntegration: workforce housekeeping feed fetch failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return $existing;
+        }
+
+        if (! is_array($data)) {
+            return $existing;
+        }
+
+        $today = (int) ($data['today'] ?? 0);
+        $peak = (int) collect($data['days'] ?? [])->max('housekeepers');
+
+        $summary = sprintf(
+            'Live from Accommodation Workforce: %d housekeeper%s scheduled today; peak %d over the next %d days.',
+            $today,
+            $today === 1 ? '' : 's',
+            $peak,
+            $days,
+        );
+
+        // Informational only: deltas stay 0 so this feed never skews the labour forecast.
+        return HkScheduleFeed::updateOrCreate(
+            ['source' => 'housekeeping_schedule'],
+            [
+                'title' => sprintf('Housekeeping Schedule — %d working today', $today),
+                'effective_date' => Carbon::today()->toDateString(),
+                'arrivals_delta' => 0,
+                'departures_delta' => 0,
+                'workforce_delta' => 0,
+                'summary' => $summary,
+                'payload' => $data,
+                'received_at' => now(),
+            ],
+        );
     }
 
     public function seedDemoFeeds(): void

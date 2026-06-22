@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HkInspection extends Model
 {
+    use BelongsToUser;
+
     protected $table = 'hk_inspections';
 
     protected $fillable = [
+        'user_id',
         'hk_work_task_id',
         'room_id',
         'inspector_name',

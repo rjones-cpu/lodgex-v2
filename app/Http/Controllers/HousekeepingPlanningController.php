@@ -51,6 +51,8 @@ class HousekeepingPlanningController extends Controller
         if (! \App\Models\HkScheduleFeed::query()->exists()) {
             $this->scheduleIntegration->seedDemoFeeds();
         }
+        // Pull the live housekeeper headcount from the Accommodation Workforce schedules.
+        $this->scheduleIntegration->syncWorkforceHousekeepingFeed(7);
         $this->scheduleIntegration->applyToForecasts($today, 7);
         $forecasts = $this->forecastService->build($today, 7);
         $summary = $this->planningEngine->summarize($today);

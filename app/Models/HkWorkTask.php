@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,9 +10,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class HkWorkTask extends Model
 {
+    use BelongsToUser;
+
     protected $table = 'hk_work_tasks';
 
     protected $fillable = [
+        'user_id',
         'room_id',
         'reservation_id',
         'housekeeper_id',

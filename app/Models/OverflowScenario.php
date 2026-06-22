@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 
 class OverflowScenario extends Model
 {
+    use BelongsToUser;
+
     protected $fillable = [
+        'user_id',
         'scenario_date',
         'shortage',
         'internal_recovery',
