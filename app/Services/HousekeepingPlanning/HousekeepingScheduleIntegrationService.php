@@ -4,13 +4,18 @@ namespace App\Services\HousekeepingPlanning;
 
 use App\Models\HkForecast;
 use App\Models\HkScheduleFeed;
+use App\Models\Housekeeper;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class HousekeepingScheduleIntegrationService
 {
+    /** Marks housekeepers mirrored from the Accommodation Workforce schedule. */
+    private const WORKFORCE_SOURCE = 'accommodation_workforce';
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -210,6 +215,187 @@ class HousekeepingScheduleIntegrationService
                 'received_at' => now(),
             ],
         );
+    }
+
+    /**
+     * Roster of housekeepers from the Accommodation Workforce schedule, each with their current
+     * rotation dates. Read-only pull from the scheduling app's
+     * /api/integrations/lodgex/housekeepers endpoint. Cached for 5 minutes and fails soft to an
+     * empty list when the scheduling app is unreachable or the integration key is not configured.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function fetchHousekeepersRoster(): array
+    {
+        $key = config('accommodation_workforce.integration_key');
+        if (empty($key)) {
+            return [];
+        }
+
+        $cacheKey = 'hk_workforce_roster';
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $apiBase = rtrim((string) config(
+            'accommodation_workforce.scheduling_api_base',
+            config('accommodation_workforce.scheduling_base'),
+        ), '/');
+        $path = config('accommodation_workforce.housekeepers_path', '/api/integrations/lodgex/housekeepers');
+
+        $headers = ['X-Lodgex-Key' => (string) $key];
+        $hostHeader = config('accommodation_workforce.scheduling_host_header');
+        if (! empty($hostHeader)) {
+            $headers['Host'] = (string) $hostHeader;
+        }
+
+        try {
+            $response = Http::timeout(5)
+                ->withHeaders($headers)
+                ->acceptJson()
+                ->get($apiBase.$path);
+
+            if ($response->failed()) {
+                return [];
+            }
+
+            $data = $response->json();
+        } catch (\Throwable $e) {
+            Log::warning('HousekeepingScheduleIntegration: housekeepers roster fetch failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+
+        $rows = is_array($data) ? ($data['housekeepers'] ?? []) : [];
+
+        $roster = collect($rows)->map(fn ($r) => [
+            'name' => $r['name'] ?? '—',
+            'company' => $r['company'] ?? null,
+            'shift' => $r['shift'] ?? null,
+            'campId' => $r['camp_id'] ?? null,
+            'room' => $r['room'] ?? null,
+            'rotationStart' => $r['rotation_start'] ?? null,
+            'rotationEnd' => $r['rotation_end'] ?? null,
+            'status' => $r['status'] ?? 'not_scheduled',
+            // Stable per-worker id from the scheduling app, used to match the local
+            // housekeeper record so a name change never creates a duplicate.
+            'externalRef' => $r['worker_id'] ?? $r['booking_id'] ?? $r['id'] ?? null,
+        ])->values()->all();
+
+        Cache::put($cacheKey, $roster, now()->addMinutes(5));
+
+        return $roster;
+    }
+
+    /**
+     * Mirror the Accommodation Workforce housekeeper roster into the local `housekeepers`
+     * table so the assignment engine and the Edit Assignment editor (which both rely on
+     * housekeepers.id foreign keys) operate on the people the workforce module schedules.
+     *
+     * Upserts each rostered housekeeper (matched by name) and deactivates anyone no longer
+     * on the roster — deactivation, not deletion, keeps existing task/assignment history and
+     * foreign keys intact while dropping them from assignment pickers.
+     *
+     * Fail-soft: when the roster is empty (integration key not configured or the scheduling
+     * app is unreachable) this is a no-op, preserving any locally-seeded housekeepers so the
+     * module stays demoable offline.
+     *
+     * @return int number of housekeepers active after the sync
+     */
+    public function syncWorkforceHousekeepersRoster(): int
+    {
+        $roster = $this->fetchHousekeepersRoster();
+
+        if (empty($roster)) {
+            return Housekeeper::active()->count();
+        }
+
+        $syncedIds = [];
+
+        foreach ($roster as $row) {
+            $name = trim((string) ($row['name'] ?? ''));
+            if ($name === '' || $name === '—') {
+                continue;
+            }
+
+            [$first, $last] = $this->splitRosterName($name);
+            $externalRef = $this->normalizeRosterRef($row['externalRef'] ?? null);
+
+            $values = [
+                'first_name' => $first,
+                'last_name' => $last,
+                'shift' => $this->normalizeRosterShift($row['shift'] ?? null),
+                'is_active' => $this->rosterStatusIsActive($row['status'] ?? null),
+            ];
+
+            // Prefer matching on the scheduling app's stable id so a renamed worker
+            // updates in place; fall back to name when the roster carries no id.
+            if ($externalRef !== null) {
+                $match = ['external_source' => self::WORKFORCE_SOURCE, 'external_ref' => $externalRef];
+            } else {
+                $match = ['first_name' => $first, 'last_name' => $last];
+                $values['external_source'] = self::WORKFORCE_SOURCE;
+            }
+
+            $housekeeper = Housekeeper::updateOrCreate($match, $values);
+
+            $syncedIds[] = $housekeeper->id;
+        }
+
+        // Anyone not present on the current workforce roster falls out of the active set.
+        Housekeeper::query()
+            ->when($syncedIds !== [], fn ($q) => $q->whereNotIn('id', $syncedIds))
+            ->where('is_active', true)
+            ->update(['is_active' => false]);
+
+        return count(array_unique($syncedIds));
+    }
+
+    /**
+     * Split a roster "name" into first + last: first token is the first name, the remainder
+     * (if any) is the last name. Falls back to an empty last name for single-token names.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function splitRosterName(string $name): array
+    {
+        $parts = preg_split('/\s+/', trim($name), 2) ?: [$name];
+
+        return [$parts[0] ?? $name, $parts[1] ?? ''];
+    }
+
+    private function normalizeRosterShift(?string $shift): string
+    {
+        $shift = trim((string) $shift);
+
+        return $shift !== '' ? substr($shift, 0, 20) : 'Day';
+    }
+
+    /**
+     * Normalize the scheduling app's worker id to a non-empty string, or null when it is
+     * missing/zero so the caller falls back to name matching.
+     */
+    private function normalizeRosterRef(mixed $ref): ?string
+    {
+        if ($ref === null) {
+            return null;
+        }
+
+        $ref = trim((string) $ref);
+
+        return ($ref === '' || $ref === '0') ? null : $ref;
+    }
+
+    /**
+     * Only housekeepers actively on rotation are assignable today. Off-day, upcoming,
+     * completed and not-scheduled workers are excluded from the assignment pickers.
+     */
+    private function rosterStatusIsActive(?string $status): bool
+    {
+        return (string) $status === 'on_rotation';
     }
 
     public function seedDemoFeeds(): void

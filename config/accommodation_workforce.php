@@ -68,6 +68,11 @@ return [
     // Workforce has scheduled. Feeds Housekeeping Planning's "Housekeeping Schedule" feed.
     'housekeeping_schedule_path' => '/api/integrations/lodgex/housekeeping-schedule',
 
+    // Read-only endpoint on the scheduling app returning the roster of housekeepers (from the
+    // Accommodation Workforce schedule) with each worker's current rotation dates. Feeds the
+    // Housekeeping Planning "Housekeepers" tab.
+    'housekeepers_path' => '/api/integrations/lodgex/housekeepers',
+
     // Read-only endpoint on the scheduling app returning the Accommodation Workforce bookings
     // ("Workforce Accommodations" company) that are mirrored into Reservation Operations.
     'reservations_path' => '/api/integrations/lodgex/reservations',

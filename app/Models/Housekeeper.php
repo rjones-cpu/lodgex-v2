@@ -26,6 +26,8 @@ class Housekeeper extends Model
         'primary_dorm',
         'skill_level',
         'is_active',
+        'external_source',
+        'external_ref',
     ];
 
     protected function casts(): array

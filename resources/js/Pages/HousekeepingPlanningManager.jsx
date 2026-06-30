@@ -2,6 +2,7 @@ import {
     AiPanel,
     AssignmentsPanel,
     ForecastPanel,
+    HousekeepersPanel,
     InspectionsPanel,
     OverviewPanel,
     ProductivityPanel,
@@ -17,6 +18,34 @@ import { AppPageBody, AppPageHeader, AppPageShell } from '../Components/AppPageS
 import { HK_TABS } from '../data/housekeepingPlanningSeed';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import {
+    BarChart3,
+    Brush,
+    Users,
+    BedDouble,
+    LineChart,
+    ShieldCheck,
+    ClipboardCheck,
+    Bot,
+    Sparkles,
+    CalendarDays,
+    ClipboardList,
+} from 'lucide-react';
+
+// Maps each Housekeeping Planning tab to its lucide icon for the icon + label tab bar.
+const HK_TAB_ICONS = {
+    overview: BarChart3,
+    tasks: Brush,
+    assignments: Users,
+    readiness: BedDouble,
+    forecast: LineChart,
+    inspections: ShieldCheck,
+    productivity: ClipboardCheck,
+    ai: Bot,
+    scenarios: Sparkles,
+    schedule: CalendarDays,
+    housekeepers: ClipboardList,
+};
 
 export default function HousekeepingPlanningManager({
     metrics = [],
@@ -24,6 +53,7 @@ export default function HousekeepingPlanningManager({
     tasks = [],
     assignments = [],
     housekeepers = [],
+    housekeepersRoster = [],
     forecasts = [],
     inspections = [],
     productivity = [],
@@ -81,7 +111,10 @@ export default function HousekeepingPlanningManager({
 
     function openAssignmentEditor(row) {
         const hk = housekeepers.find((h) => h.id === row.housekeeperId);
-        if (!hk) return;
+        if (!hk) {
+            flash('This housekeeper is no longer on the active workforce roster. Refresh to rebuild the board.');
+            return;
+        }
         setEditorHk(hk);
     }
 
@@ -147,19 +180,30 @@ export default function HousekeepingPlanningManager({
 
                     <section className="grid grid-cols-1 gap-[18px] xl:grid-cols-[1fr_300px]">
                         <div className="rounded-2xl border border-lx-border bg-white shadow-lx-card">
-                            <div className="flex gap-1 overflow-x-auto border-b border-lx-border px-3 py-2">
-                                {HK_TABS.map((t) => (
-                                    <button
-                                        key={t.key}
-                                        type="button"
-                                        onClick={() => setActiveTab(t.key)}
-                                        className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-black ${
-                                            activeTab === t.key ? 'bg-lx-blue text-white' : 'text-lx-ink hover:bg-[#f0f6ff]'
-                                        }`}
-                                    >
-                                        {t.icon} {t.label}
-                                    </button>
-                                ))}
+                            <div className="flex gap-2 overflow-x-auto border-b border-lx-border px-3 py-3">
+                                {HK_TABS.map((t) => {
+                                    const Icon = HK_TAB_ICONS[t.key] ?? BarChart3;
+                                    const isActive = activeTab === t.key;
+                                    return (
+                                        <button
+                                            key={t.key}
+                                            type="button"
+                                            onClick={() => setActiveTab(t.key)}
+                                            aria-pressed={isActive}
+                                            className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2.5 text-xs font-bold transition ${
+                                                isActive
+                                                    ? 'border-lx-blue bg-lx-blue text-white shadow-sm'
+                                                    : 'border-lx-border bg-white text-lx-ink hover:border-lx-blue/40 hover:bg-[#f0f6ff]'
+                                            }`}
+                                        >
+                                            <Icon
+                                                className={`h-4 w-4 ${isActive ? 'text-white' : 'text-lx-blue'}`}
+                                                strokeWidth={2.4}
+                                            />
+                                            <span>{t.label}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                             <div className="border-b border-lx-border px-[18px] py-4">
                                 <h2 className="text-base font-black text-lx-navy">{tabLabel}</h2>
@@ -186,6 +230,7 @@ export default function HousekeepingPlanningManager({
                                             <ScenariosPanel presets={scenarioPresets} result={scenarioResult} onRun={runScenario} />
                                         )}
                                         {activeTab === 'schedule' && <ScheduleFeedsPanel feeds={scheduleFeeds} />}
+                                        {activeTab === 'housekeepers' && <HousekeepersPanel rows={housekeepersRoster} />}
                                 {activeTab === 'forecast' && <ForecastPanel rows={forecasts} />}
                                 {activeTab === 'inspections' && <InspectionsPanel rows={inspections} />}
                                 {activeTab === 'productivity' && <ProductivityPanel rows={productivity} />}

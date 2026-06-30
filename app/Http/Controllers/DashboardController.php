@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -104,7 +105,7 @@ class DashboardController extends Controller
     {
         $validated = $request->validate([
             'reservation_id' => ['required', 'integer', 'exists:reservations,id'],
-            'room_id' => ['required', 'integer', 'exists:rooms,id'],
+            'room_id' => ['required', 'integer', Rule::exists(Room::class, 'id')],
         ]);
 
         $reservation = Reservation::query()

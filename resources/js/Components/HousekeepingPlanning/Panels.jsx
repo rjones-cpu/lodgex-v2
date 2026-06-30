@@ -250,6 +250,65 @@ export function ScheduleFeedsPanel({ feeds = [] }) {
     );
 }
 
+const HK_ROTATION_STATUS = {
+    on_rotation: 'On rotation',
+    off_day: 'Off day',
+    upcoming: 'Upcoming',
+    completed: 'Completed',
+    not_scheduled: 'Not scheduled',
+};
+
+function formatRosterDate(value) {
+    if (!value) return '—';
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+export function HousekeepersPanel({ rows = [] }) {
+    if (!rows.length) {
+        return (
+            <p className="text-xs text-slate-500">
+                No housekeepers found on the Accommodation Workforce schedule. Confirm the workforce
+                integration is configured (LODGEX_INTEGRATION_KEY) and that housekeepers are scheduled.
+            </p>
+        );
+    }
+
+    return (
+        <div className="overflow-x-auto rounded-xl border border-lx-border">
+            <table className="w-full min-w-[800px] border-collapse">
+                <thead>
+                    <tr>
+                        <Th>Housekeeper</Th>
+                        <Th>Shift</Th>
+                        <Th>Company</Th>
+                        <Th>Camp</Th>
+                        <Th>Room</Th>
+                        <Th>Rotation start</Th>
+                        <Th>Rotation end</Th>
+                        <Th>Status</Th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((r, i) => (
+                        <tr key={`${r.name}-${i}`}>
+                            <Td>{r.name}</Td>
+                            <Td>{r.shift ?? '—'}</Td>
+                            <Td>{r.company ?? '—'}</Td>
+                            <Td>{r.campId ?? '—'}</Td>
+                            <Td>{r.room ?? '—'}</Td>
+                            <Td>{formatRosterDate(r.rotationStart)}</Td>
+                            <Td>{formatRosterDate(r.rotationEnd)}</Td>
+                            <Td>{HK_ROTATION_STATUS[r.status] || r.status}</Td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 export function ForecastPanel({ rows = [] }) {
     return (
         <div className="overflow-x-auto rounded-xl border border-lx-border">

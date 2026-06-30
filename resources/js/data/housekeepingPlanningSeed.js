@@ -19,6 +19,7 @@ export const HK_TABS = [
     { key: 'ai', label: 'AI Assistant', icon: '🤖' },
     { key: 'scenarios', label: 'Scenarios', icon: '🔮' },
     { key: 'schedule', label: 'Schedule Feeds', icon: '📅' },
+    { key: 'housekeepers', label: 'Housekeepers', icon: '🧳' },
 ];
 
 export const SCHEDULE_SOURCE_LABELS = {

@@ -45,9 +45,11 @@ class HousekeepingPlanningController extends Controller
     {
         $today = Carbon::today();
         $this->taskGeneration->sync($today);
-        if (! HkDailyAssignment::query()->whereDate('assignment_date', $today)->exists()) {
-            $this->assignmentService->assignForDate($today);
-        }
+        // Mirror the Accommodation Workforce housekeeper roster into the local housekeepers
+        // table so assignments and the Edit Assignment editor use the workforce-scheduled
+        // people. No-op (keeps seeded data) when the workforce integration is not configured.
+        $this->scheduleIntegration->syncWorkforceHousekeepersRoster();
+        $this->ensureAssignmentsForActiveHousekeepers($today);
         if (! \App\Models\HkScheduleFeed::query()->exists()) {
             $this->scheduleIntegration->seedDemoFeeds();
         }
@@ -64,6 +66,7 @@ class HousekeepingPlanningController extends Controller
             'tasks' => $this->buildTasks($today),
             'assignments' => $this->buildAssignments($today),
             'housekeepers' => $this->buildHousekeepers(),
+            'housekeepersRoster' => $this->scheduleIntegration->fetchHousekeepersRoster(),
             'forecasts' => $forecasts->map(fn (HkForecast $f) => [
                 'date' => $f->forecast_date->format('M j'),
                 'arrivals' => $f->arrivals,
@@ -83,6 +86,57 @@ class HousekeepingPlanningController extends Controller
             'scenarioPresets' => $this->scenarioService->presets(),
             'lastUpdated' => now()->format('M j, Y g:i A'),
         ]);
+    }
+
+    /**
+     * Keep today's assignment board aligned with the currently-active (workforce-sourced)
+     * housekeepers. Builds the board when none exists yet, and — after a roster change has
+     * deactivated the people who held today's work — frees their unfinished tasks and
+     * redistributes them to the active housekeepers. Without this, the Assignments tab and
+     * its Edit modal would reference housekeepers that no longer appear in the active list.
+     */
+    private function ensureAssignmentsForActiveHousekeepers(Carbon $today): void
+    {
+        $activeHkIds = Housekeeper::active()->pluck('id');
+
+        // No active roster yet (e.g. a transient sync) — leave any existing board untouched.
+        if ($activeHkIds->isEmpty()) {
+            return;
+        }
+
+        $dateStr = $today->toDateString();
+
+        if (! HkDailyAssignment::query()->whereDate('assignment_date', $today)->exists()) {
+            $this->assignmentService->assignForDate($today);
+
+            return;
+        }
+
+        $hasStaleAssignments = HkDailyAssignment::query()
+            ->whereDate('assignment_date', $today)
+            ->whereNotIn('housekeeper_id', $activeHkIds)
+            ->exists();
+
+        if (! $hasStaleAssignments) {
+            return;
+        }
+
+        // Free unfinished work held by housekeepers who are no longer active (finished work
+        // stays attributed to whoever completed it).
+        HkWorkTask::query()
+            ->forDate($dateStr)
+            ->whereNotNull('housekeeper_id')
+            ->whereNotIn('housekeeper_id', $activeHkIds)
+            ->whereNotIn('status', ['Completed', 'Passed Inspection'])
+            ->update(['housekeeper_id' => null, 'status' => 'Pending']);
+
+        // Drop their stale assignment rows, then redistribute the freed work to active staff.
+        HkDailyAssignment::query()
+            ->whereDate('assignment_date', $today)
+            ->whereNotIn('housekeeper_id', $activeHkIds)
+            ->delete();
+
+        $this->assignmentService->assignForDate($today);
     }
 
     public function runScenario(Request $request): RedirectResponse

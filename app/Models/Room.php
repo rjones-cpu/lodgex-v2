@@ -14,6 +14,9 @@ class Room extends Model
 {
     use BelongsToUser;
 
+    /** Legacy DB keeps lodgex room rows in `rooms_old`; `rooms` is an unrelated camp schema. */
+    protected $table = 'rooms_old';
+
     protected $fillable = [
         'user_id',
         'number',
