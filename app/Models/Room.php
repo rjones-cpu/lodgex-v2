@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\RoomStatus;
+use App\Models\Builders\RoomBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,9 +12,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Room extends Model
 {
+    /** Legacy DB keeps lodgex room rows in `rooms_old`; `rooms` is an unrelated camp schema. */
+    protected $table = 'rooms_old';
+
     protected $fillable = [
         'number',
-        'dorm',
+        'name',
         'room_inventory_location_id',
         'room_type',
         'status',
@@ -91,5 +95,20 @@ class Room extends Model
     public function scopeStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
+    }
+
+    public function newEloquentBuilder($query): RoomBuilder
+    {
+        return new RoomBuilder($query);
+    }
+
+    public function getDormAttribute(): ?string
+    {
+        return $this->attributes['name'] ?? null;
+    }
+
+    public function setDormAttribute(?string $value): void
+    {
+        $this->attributes['name'] = $value;
     }
 }

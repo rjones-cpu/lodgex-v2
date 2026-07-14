@@ -180,6 +180,9 @@ function AiRobotIcon() {
                 <circle cx="62.5" cy="58.5" r="6.8" fill="url(#aiEye)" />
                 <circle cx="39.5" cy="56.5" r="1.5" fill="white" opacity="0.92" />
                 <circle cx="60.5" cy="56.5" r="1.5" fill="white" opacity="0.92" />
+                <circle cx="31.5" cy="64.5" r="3.4" fill="#ff9ec4" opacity="0.5" />
+                <circle cx="72.5" cy="64.5" r="3.4" fill="#ff9ec4" opacity="0.5" />
+                <path d="M45.5 67.5 Q52 73.5 58.5 67.5" stroke="#9cd6ff" strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
                 <circle cx="72" cy="85" r="17.2" fill="url(#aiBadge)" />
                 <text

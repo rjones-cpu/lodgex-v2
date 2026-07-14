@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HkAiRecommendation extends Model
 {
+    use BelongsToUser;
+
     protected $table = 'hk_ai_recommendations';
 
     protected $fillable = [
+        'user_id',
         'category',
         'fingerprint',
         'issue',

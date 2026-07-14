@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HkDailyAssignment extends Model
 {
+    use BelongsToUser;
+
     protected $table = 'hk_daily_assignments';
 
     protected $fillable = [
+        'user_id',
         'assignment_date',
         'housekeeper_id',
         'total_rooms',

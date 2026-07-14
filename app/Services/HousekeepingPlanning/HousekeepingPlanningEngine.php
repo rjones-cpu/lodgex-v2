@@ -11,6 +11,7 @@ class HousekeepingPlanningEngine
 {
     public function __construct(
         private readonly HousekeepingStandardsService $standards,
+        private readonly HousekeepingScheduleIntegrationService $scheduleIntegration,
     ) {}
 
     public function summarize(Carbon $date): HousekeepingPlanningSummary
@@ -18,7 +19,12 @@ class HousekeepingPlanningEngine
         $dateStr = $date->toDateString();
         $rules = $this->standards->rules();
         $tasks = HkWorkTask::query()->forDate($dateStr)->with(['room', 'housekeeper'])->get();
-        $housekeepers = Housekeeper::active()->count();
+        // Prefer the live Accommodation Workforce position-based headcount for this date when
+        // enabled; fall back to the local housekeepers table.
+        $liveCount = config('accommodation_workforce.use_live_housekeeper_count', true)
+            ? $this->scheduleIntegration->liveHousekeeperCountForDate($date)
+            : null;
+        $housekeepers = $liveCount ?? Housekeeper::active()->count();
         $productive = $housekeepers * $rules->productive_minutes;
 
         $unassigned = $tasks->whereNull('housekeeper_id')->whereNotIn('status', ['Completed', 'Passed Inspection', 'Cancelled']);

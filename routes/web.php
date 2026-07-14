@@ -3,13 +3,16 @@
 use App\Http\Controllers\AccommodationWorkforceController;
 use App\Http\Controllers\CommandCenterController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ForecastingController;
 use App\Http\Controllers\HousekeepingPlanningController;
+use App\Http\Controllers\PolicyController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ReservationManagerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoomInventoryController;
 use App\Http\Controllers\RoomUtilizationController;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -22,6 +25,14 @@ Route::get('/', function () {
     ]);
 });
 
+Route::get('/clear', function () {
+    Artisan::call('optimize:clear');
+
+    return response(trim(Artisan::output()) ?: 'Caches cleared successfully.', 200, [
+        'Content-Type' => 'text/plain; charset=UTF-8',
+    ]);
+})->middleware(['auth', 'verified'])->name('clear');
+
 Route::get('/modules/reservations', [ReservationManagerController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('reservations');
@@ -33,6 +44,14 @@ Route::get('/accomodation-workforce', [AccommodationWorkforceController::class, 
 Route::post('/accomodation-workforce/login-url', [AccommodationWorkforceController::class, 'loginUrl'])
     ->middleware(['auth', 'verified'])
     ->name('accommodation-workforce.login-url');
+
+Route::post('/accomodation-workforce/sync-reservations', [AccommodationWorkforceController::class, 'syncReservations'])
+    ->middleware(['auth', 'verified'])
+    ->name('accommodation-workforce.sync-reservations');
+
+Route::get('/add-single-worker', [AccommodationWorkforceController::class, 'addSingleWorker'])
+    ->middleware(['auth', 'verified'])
+    ->name('add-single-worker');
 
 Route::get('/command-center', [CommandCenterController::class, 'index'])
     ->middleware(['auth', 'verified'])
@@ -55,6 +74,10 @@ Route::post('/dashboard/ai-assign-room', [DashboardController::class, 'aiAssignR
     ->middleware(['auth', 'verified'])
     ->name('dashboard.ai-assign-room');
 
+Route::post('/dashboard/approve', [DashboardController::class, 'approve'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.approve');
+
 Route::post('/dashboard/check-in', [DashboardController::class, 'checkInWorker'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.check-in');
@@ -63,17 +86,25 @@ Route::post('/dashboard/extend-stay', [DashboardController::class, 'extendStay']
     ->middleware(['auth', 'verified'])
     ->name('dashboard.extend-stay');
 
+Route::get('/policies', [PolicyController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('policies');
+
+Route::put('/policies', [PolicyController::class, 'update'])
+    ->middleware(['auth', 'verified'])
+    ->name('policies.update');
+
+Route::get('/policies/guest-search', [PolicyController::class, 'searchOnHoldExemptGuests'])
+    ->middleware(['auth', 'verified'])
+    ->name('policies.guest-search');
+
 Route::get('/room-utilization', [RoomUtilizationController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('room-utilization');
 
-Route::get('/room-utilization/overview', [RoomUtilizationController::class, 'overview'])
+Route::get('/forecasting', [ForecastingController::class, 'index'])
     ->middleware(['auth', 'verified'])
-    ->name('room-utilization.overview');
-
-Route::get('/room-utilization/manage', [RoomUtilizationController::class, 'manage'])
-    ->middleware(['auth', 'verified'])
-    ->name('room-utilization.manage');
+    ->name('forecasting');
 
 Route::get('/reports', [ReportsController::class, 'index'])
     ->middleware(['auth', 'verified'])

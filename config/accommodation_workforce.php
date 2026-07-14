@@ -35,7 +35,14 @@ return [
     */
     'scheduling_base' => rtrim($schedulingBase, '/'),
     'scheduling_path' => env('ACCOMMODATION_WORKFORCE_SCHEDULING_PATH', '/scheduling/dashboard'),
-    'reservation_add_path' => env('ACCOMMODATION_WORKFORCE_RESERVATION_ADD_PATH', '/reservations/add'),
+    // Land the embedded Add Reservation iframe on the Catering Staff flow by default.
+    // Override with ACCOMMODATION_WORKFORCE_RESERVATION_ADD_PATH=/reservations/add/walkin
+    // (or any other camp-reservations path) when needed.
+    'reservation_add_path' => env('ACCOMMODATION_WORKFORCE_RESERVATION_ADD_PATH', '/reservations/add/catering'),
+
+    // Add Single Worker iframe (Scheduling Coordinator) — mirrors reservation_add_path.
+    // Same login-handoff flow; the camp-reservations route accepts an optional /{tab?} segment.
+    'single_worker_add_path' => env('ACCOMMODATION_WORKFORCE_SINGLE_WORKER_ADD_PATH', '/scheduling/coordinator/add-single-worker'),
 
     // Local server-to-server calls: use loopback + Host header so PHP can reach
     // Apache even when camp.site DNS is unavailable to the PHP process.
@@ -56,6 +63,32 @@ return [
     */
     'integration_key' => env('LODGEX_INTEGRATION_KEY'),
     'issue_login_path' => '/api/integrations/lodgex/issue-login-url',
+
+    // Read-only endpoint on the scheduling app reporting how many housekeepers the Accommodation
+    // Workforce has scheduled. Feeds Housekeeping Planning's "Housekeeping Schedule" feed.
+    'housekeeping_schedule_path' => '/api/integrations/lodgex/housekeeping-schedule',
+
+    // Read-only endpoint on the scheduling app returning the roster of housekeepers (from the
+    // Accommodation Workforce schedule) with each worker's current rotation dates. Feeds the
+    // Housekeeping Planning "Housekeepers" tab.
+    'housekeepers_path' => '/api/integrations/lodgex/housekeepers',
+
+    // Read-only endpoint on the scheduling app returning the Accommodation Workforce bookings
+    // ("Workforce Accommodations" company) that are mirrored into Reservation Operations.
+    'reservations_path' => '/api/integrations/lodgex/reservations',
+
+    // Endpoint that reflects a Reservation Operations status change back onto the matching
+    // Workforce Accommodations booking on the scheduling app.
+    'reservation_status_path' => '/api/integrations/lodgex/reservation-status',
+
+    // Seconds the synced reservations feed is considered fresh before the Reservation Operations
+    // dashboard re-pulls it from the scheduling app.
+    'reservations_sync_ttl' => (int) env('ACCOMMODATION_WORKFORCE_RESERVATIONS_SYNC_TTL', 90),
+
+    // When true, Housekeeping Planning uses the live position-based housekeeper count from the
+    // Accommodation Workforce schedule (camp-reservations) as the available headcount instead of
+    // the local housekeepers table. Set false to revert to the local-only count.
+    'use_live_housekeeper_count' => (bool) env('ACCOMMODATION_WORKFORCE_USE_LIVE_HOUSEKEEPER_COUNT', true),
 
     /*
     |--------------------------------------------------------------------------

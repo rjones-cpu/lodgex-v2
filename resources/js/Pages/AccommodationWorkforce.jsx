@@ -3,7 +3,7 @@ import { AppPageBody, AppPageHeader, AppPageShell } from '../Components/AppPageS
 import AddReservationModal from '../Components/AccommodationWorkforce/AddReservationModal';
 import UserAccountMenu from '../Components/AccommodationWorkforce/UserAccountMenu';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 function getInitials(name) {
     if (!name) return 'JD';
@@ -46,21 +46,52 @@ function ErrorState({ message, onRetry }) {
     );
 }
 
-function DashboardFrame({ url, title, notice, onReload, onAddReservation }) {
+function DashboardFrame({ url, lastUpdated, notice, onReload }) {
+    const iframeRef = useRef(null);
+
+    // Bridge to the embedded scheduling dashboard: these messages trigger the
+    // dashboard's existing "Reset all changes" / "publish all" handlers, so the
+    // schedule-update logic lives in one place (camp-reservations) and is not
+    // duplicated here. Posts only to the iframe's own origin.
+    const postToFrame = useCallback(
+        (type) => {
+            const frame = iframeRef.current;
+            if (!frame || !frame.contentWindow) {
+                return;
+            }
+
+            let targetOrigin;
+            try {
+                targetOrigin = new URL(url).origin;
+            } catch (e) {
+                return;
+            }
+
+            frame.contentWindow.postMessage({ type }, targetOrigin);
+        },
+        [url],
+    );
+
     return (
         <section className="flex min-h-0 flex-1 flex-col">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <p className="m-0 text-sm font-black text-lx-navy">{title}</p>
-                    <p className="m-0 text-xs font-bold text-lx-ink-soft">Scheduling dashboard</p>
-                </div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="m-0 text-xs font-bold text-lx-ink-soft">
+                    {lastUpdated ? `Last updated: ${lastUpdated}` : ''}
+                </p>
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         type="button"
-                        onClick={onAddReservation}
+                        onClick={() => postToFrame('lodgex:reset-all-changes')}
+                        className="h-9 rounded-xl border border-lx-border bg-white px-3 text-sm font-bold text-lx-navy hover:bg-lx-blue/5"
+                    >
+                        Reset All Changes
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => postToFrame('lodgex:publish-all')}
                         className="h-9 rounded-xl bg-lx-blue px-4 text-sm font-bold text-white hover:opacity-90"
                     >
-                        + Add Reservation
+                        Publish All
                     </button>
                     <button
                         type="button"
@@ -69,14 +100,6 @@ function DashboardFrame({ url, title, notice, onReload, onAddReservation }) {
                     >
                         ↻ Reload
                     </button>
-                    <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="h-9 rounded-xl border border-lx-border bg-white px-3 text-sm font-bold leading-9 text-lx-blue hover:bg-lx-blue/5"
-                    >
-                        Open in new tab ↗
-                    </a>
                 </div>
             </div>
 
@@ -88,6 +111,7 @@ function DashboardFrame({ url, title, notice, onReload, onAddReservation }) {
 
             <div className="min-h-[60vh] flex-1 overflow-hidden rounded-2xl border border-lx-border bg-white">
                 <iframe
+                    ref={iframeRef}
                     title="Scheduling dashboard"
                     src={url}
                     className="h-full min-h-[60vh] w-full"
@@ -101,6 +125,7 @@ function DashboardFrame({ url, title, notice, onReload, onAddReservation }) {
 export default function AccommodationWorkforce({
     lastUpdated = '',
     reservationAddPath = '/reservations/add',
+    singleWorkerAddPath = '/scheduling/coordinator/add-single-worker',
 }) {
     const { auth } = usePage().props;
     const userName = auth?.user?.name || 'John Doe';
@@ -136,6 +161,15 @@ export default function AccommodationWorkforce({
         loadDashboard();
     }, [loadDashboard]);
 
+    // After a worker is added, mirror it into Reservation Operations right away
+    // (fail-soft: the dashboard also syncs on load) and refresh the widget.
+    const handleReservationAdded = useCallback(() => {
+        window.axios
+            .post(route('accommodation-workforce.sync-reservations'))
+            .catch(() => {});
+        loadDashboard();
+    }, [loadDashboard]);
+
     return (
         <>
             <Head title="Accommodation Workforce" />
@@ -150,9 +184,6 @@ export default function AccommodationWorkforce({
                                 </div>
                                 <div>
                                     <h1 className="m-0 text-xl font-black md:text-2xl">Accommodation Workforce</h1>
-                                    <p className="m-0 mt-0.5 text-sm text-white/75">
-                                        Your scheduling dashboard, signed in automatically.
-                                    </p>
                                     <p className="m-0 mt-1 text-xs font-bold text-white/60">
                                         Child Module •{' '}
                                         <Link href={route('command-center')} className="text-sky-300 hover:underline">
@@ -182,19 +213,14 @@ export default function AccommodationWorkforce({
                     </AppPageHeader>
 
                     <AppPageBody className="flex min-h-0 flex-col p-6">
-                        {lastUpdated && (
-                            <p className="mb-4 text-xs font-bold text-lx-ink-soft">Last updated: {lastUpdated}</p>
-                        )}
-
                         {loading ? (
                             <LoadingState />
                         ) : url ? (
                             <DashboardFrame
                                 url={url}
-                                title={userName}
+                                lastUpdated={lastUpdated}
                                 notice={notice}
                                 onReload={loadDashboard}
-                                onAddReservation={() => setAddReservationOpen(true)}
                             />
                         ) : (
                             <ErrorState message={error || 'Could not load the scheduling dashboard.'} onRetry={loadDashboard} />
@@ -206,7 +232,8 @@ export default function AccommodationWorkforce({
             <AddReservationModal
                 open={addReservationOpen}
                 onClose={() => setAddReservationOpen(false)}
-                reservationAddPath={reservationAddPath}
+                onReservationAdded={handleReservationAdded}
+                reservationAddPath={singleWorkerAddPath || reservationAddPath}
             />
         </>
     );

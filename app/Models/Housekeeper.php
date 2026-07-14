@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Housekeeper extends Model
 {
+    use BelongsToUser;
+
     protected $fillable = [
+        'user_id',
         'first_name',
         'last_name',
         'role',
@@ -22,6 +26,8 @@ class Housekeeper extends Model
         'primary_dorm',
         'skill_level',
         'is_active',
+        'external_source',
+        'external_ref',
     ];
 
     protected function casts(): array

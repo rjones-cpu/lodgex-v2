@@ -14,6 +14,7 @@ class HousekeepingForecastService
 {
     public function __construct(
         private readonly HousekeepingStandardsService $standards,
+        private readonly HousekeepingScheduleIntegrationService $scheduleIntegration,
     ) {}
 
     /**
@@ -22,12 +23,18 @@ class HousekeepingForecastService
     public function build(Carbon $from, int $days = 7): Collection
     {
         $rules = $this->standards->rules();
-        $activeHousekeepers = Housekeeper::active()->count();
+        $localHousekeepers = Housekeeper::active()->count();
+        // When enabled, the live Accommodation Workforce position-based count is the source of
+        // truth for how many housekeepers are available; fall back to the local count per day.
+        $liveCounts = config('accommodation_workforce.use_live_housekeeper_count', true)
+            ? $this->scheduleIntegration->liveHousekeeperCounts()
+            : [];
         $forecasts = collect();
 
         for ($i = 0; $i < $days; $i++) {
             $date = $from->copy()->addDays($i);
             $dateStr = $date->toDateString();
+            $activeHousekeepers = $liveCounts[$dateStr] ?? $localHousekeepers;
 
             $arrivals = Reservation::query()->whereDate('arrival_date', $dateStr)->count();
             $departures = Reservation::query()->whereDate('departure_date', $dateStr)->count();

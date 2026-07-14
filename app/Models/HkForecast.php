@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Model;
 
 class HkForecast extends Model
 {
+    use BelongsToUser;
+
     protected $table = 'hk_forecasts';
 
     protected $fillable = [
+        'user_id',
         'forecast_date',
         'arrivals',
         'departures',

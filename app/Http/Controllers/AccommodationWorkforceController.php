@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AccommodationWorkforce\WorkforceReservationSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -19,7 +20,39 @@ class AccommodationWorkforceController extends Controller
             'lastUpdated' => now()->format('M j, Y g:i A'),
             'schedulingBase' => rtrim((string) config('accommodation_workforce.scheduling_base'), '/'),
             'reservationAddPath' => config('accommodation_workforce.reservation_add_path', '/reservations/add'),
+            'singleWorkerAddPath' => config('accommodation_workforce.single_worker_add_path', '/scheduling/coordinator/add-single-worker'),
         ]);
+    }
+
+    /**
+     * Standalone Add Single Worker page. Uses the same iframe + login-handoff
+     * pattern as the Accommodation Workforce dashboard; only the embedded
+     * target path differs (Scheduling Coordinator → Add Single Worker).
+     */
+    public function addSingleWorker(): Response
+    {
+        return Inertia::render('AddSingleWorker', [
+            'lastUpdated' => now()->format('M j, Y g:i A'),
+            'schedulingBase' => rtrim((string) config('accommodation_workforce.scheduling_base'), '/'),
+            'singleWorkerAddPath' => config('accommodation_workforce.single_worker_add_path', '/scheduling/coordinator/add-single-worker'),
+        ]);
+    }
+
+    /**
+     * Force a pull of the Accommodation Workforce bookings into the local
+     * Reservation Operations queue. Called right after a worker is added so the
+     * new reservation is available without waiting for the next dashboard load.
+     */
+    public function syncReservations(Request $request, WorkforceReservationSyncService $sync): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Not authenticated.'], 401);
+        }
+
+        $synced = $sync->syncForUser($user, force: true);
+
+        return response()->json(['synced' => $synced]);
     }
 
     /**
