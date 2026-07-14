@@ -12,6 +12,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoomInventoryController;
 use App\Http\Controllers\RoomUtilizationController;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -23,6 +24,14 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+
+Route::get('/clear', function () {
+    Artisan::call('optimize:clear');
+
+    return response(trim(Artisan::output()) ?: 'Caches cleared successfully.', 200, [
+        'Content-Type' => 'text/plain; charset=UTF-8',
+    ]);
+})->middleware(['auth', 'verified'])->name('clear');
 
 Route::get('/modules/reservations', [ReservationManagerController::class, 'index'])
     ->middleware(['auth', 'verified'])
