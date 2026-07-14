@@ -5,11 +5,12 @@ namespace App\Models\Builders;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Maps the app's `dorm` attribute to the legacy `rooms_old.name` column.
+ * Normalizes dorm column references for the lodgex `rooms_old` table,
+ * which stores the dorm string in `dorm` (not camp-reservations `rooms.name`).
  */
 class RoomBuilder extends Builder
 {
-    private const DORM_COLUMN = 'name';
+    private const DORM_COLUMN = 'dorm';
 
     private function mapColumn(string $column): string
     {

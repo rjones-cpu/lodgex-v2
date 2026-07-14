@@ -107,7 +107,7 @@ class RoomUtilizationController extends Controller
             'recentAudit' => $this->buildRecentAudit(),
             'lastUpdated' => now()->format('M j, Y g:i A'),
             'lodgePolicy' => $lodgePolicy,
-        ]);
+        ];
     }
 
     public function submitReleaseList(Request $request): RedirectResponse
