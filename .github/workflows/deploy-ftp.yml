@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -27,9 +27,9 @@ jobs:
           coverage: none
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
 
       - name: Install PHP dependencies
@@ -42,15 +42,15 @@ jobs:
         run: npm run build
 
       - name: Deploy over FTPS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
-          server: ftp.campreservations.net
-          username: ftp-smart@campreservations.net
-          password: nEst)F4s_)FL?U]_
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          # Remote folder for smart-lodge.lodgex.ca — set FTP_REMOTE_PATH secret if different.
-          server-dir:  /home/n0c2265/camp_sites/smart-lodge.lodgex.ca
+          # Prefer trailing slash. Absolute path if FTP allows it; otherwise use camp_sites/smart-lodge.lodgex.ca/
+          server-dir: ${{ secrets.FTP_REMOTE_PATH }}
           local-dir: ./
           dangerous-clean-slate: false
           exclude: |
