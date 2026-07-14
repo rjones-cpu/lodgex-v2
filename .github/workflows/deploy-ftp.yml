@@ -50,7 +50,7 @@ jobs:
           protocol: ftps
           port: 21
           # Remote folder for smart-lodge.lodgex.ca — set FTP_REMOTE_PATH secret if different.
-          server-dir:  './'
+          server-dir:  /home/n0c2265/camp_sites/smart-lodge.lodgex.ca
           local-dir: ./
           dangerous-clean-slate: false
           exclude: |
