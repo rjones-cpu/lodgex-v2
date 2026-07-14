@@ -49,8 +49,8 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          # Prefer trailing slash. Absolute path if FTP allows it; otherwise use camp_sites/smart-lodge.lodgex.ca/
-          server-dir: ${{ secrets.FTP_REMOTE_PATH }}
+          # FTP-Deploy-Action requires a trailing slash on server-dir.
+          server-dir: ${{ endsWith(secrets.FTP_REMOTE_PATH, '/') && secrets.FTP_REMOTE_PATH || format('{0}/', secrets.FTP_REMOTE_PATH) }}
           local-dir: ./
           dangerous-clean-slate: false
           exclude: |
