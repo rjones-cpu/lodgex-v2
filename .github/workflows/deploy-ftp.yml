@@ -41,14 +41,19 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-      - name: Deploy over FTPS
+      # Data-connection timeouts usually mean FTPS PASV ports are blocked from
+      # GitHub runners. Prefer plain FTP first (port 21); host said FTP + FTPS
+      # both use 21. Switch protocol to "ftps" or "ftps-legacy" if FTP is denied.
+      - name: Deploy over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
+          protocol: ftp
           port: 21
+          security: loose
+          timeout: 600000
           # FTP-Deploy-Action requires a trailing slash on server-dir.
           server-dir: ${{ endsWith(secrets.FTP_REMOTE_PATH, '/') && secrets.FTP_REMOTE_PATH || format('{0}/', secrets.FTP_REMOTE_PATH) }}
           local-dir: ./
@@ -70,4 +75,4 @@ jobs:
             **/phpunit.xml
             **/cj*.txt
             **/cookies.txt
-          log-level: standard
+          log-level: verbose
