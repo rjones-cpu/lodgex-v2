@@ -227,14 +227,14 @@ export default function AssignmentEditorModal({
 
     return (
         <div
-            className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/40 p-4"
+            className="fixed inset-0 z-[1500] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
             onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
         >
-            <div className="flex max-h-[90vh] w-full max-w-[960px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex max-h-[95vh] w-full max-w-[960px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
                 {/* Header */}
-                <div className="flex items-start justify-between border-b border-lx-line px-6 py-4">
-                    <div>
-                        <h3 className="text-lg font-black text-lx-navy">Edit Assignment — {housekeeper.name}</h3>
+                <div className="flex items-start justify-between gap-3 border-b border-lx-line px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="min-w-0">
+                        <h3 className="text-base font-black text-lx-navy sm:text-lg">Edit Assignment — {housekeeper.name}</h3>
                         <p className="text-xs text-slate-500">
                             {housekeeper.shift || 'Day Shift'}
                             {housekeeper.primaryDorm ? ` · Primary dorm ${housekeeper.primaryDorm}` : ''}
@@ -244,7 +244,7 @@ export default function AssignmentEditorModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                        className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
                         aria-label="Close"
                     >
                         ✕
@@ -252,8 +252,8 @@ export default function AssignmentEditorModal({
                 </div>
 
                 {/* Live totals */}
-                <div className={`border-b border-lx-line px-6 py-3 ${overload ? 'bg-red-50' : 'bg-[#fbfdff]'}`}>
-                    <div className="grid grid-cols-5 gap-3 text-xs">
+                <div className={`border-b border-lx-line px-4 py-3 sm:px-6 ${overload ? 'bg-red-50' : 'bg-[#fbfdff]'}`}>
+                    <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-3 lg:grid-cols-5">
                         {[
                             ['Rooms', liveTotals.rooms, housekeeper.maxRooms],
                             ['Check-outs', liveTotals.checkouts, housekeeper.maxCheckouts],
@@ -261,9 +261,9 @@ export default function AssignmentEditorModal({
                             ['Minutes', liveTotals.minutes, null],
                             ['Dorms', liveTotals.dorms.join(', ') || '—', null],
                         ].map(([label, value, max]) => (
-                            <div key={label}>
+                            <div key={label} className="min-w-0">
                                 <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
-                                <div className={`text-base font-black ${typeof value === 'number' && max ? limitClass(value, max) : 'text-slate-700'}`}>
+                                <div className={`truncate text-base font-black ${typeof value === 'number' && max ? limitClass(value, max) : 'text-slate-700'}`}>
                                     {value}{max != null ? <span className="ml-1 text-[11px] font-bold text-slate-400">/ {max}</span> : null}
                                 </div>
                             </div>
@@ -277,7 +277,7 @@ export default function AssignmentEditorModal({
                 </div>
 
                 {/* Body — scrollable */}
-                <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
                     {/* Pending changes (review + redirect + undo).
                         Only appears once the supervisor has staged at least one change.
                         Shows every change — including rooms that have been moved AWAY from this
@@ -296,15 +296,15 @@ export default function AssignmentEditorModal({
                                     Undo all
                                 </button>
                             </div>
-                            <div className="overflow-hidden rounded-lg border border-lx-border bg-white">
-                                <table className="w-full border-collapse text-xs">
+                            <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-lx-border bg-white [scrollbar-width:thin]">
+                                <table className="w-full min-w-[640px] border-collapse text-xs">
                                     <thead>
                                         <tr className="bg-slate-50 text-left text-[10px] font-black uppercase text-slate-500">
                                             <th className="border-b border-lx-line px-2 py-2">Room</th>
                                             <th className="border-b border-lx-line px-2 py-2">Dorm</th>
                                             <th className="border-b border-lx-line px-2 py-2">Task</th>
                                             <th className="border-b border-lx-line px-2 py-2">From</th>
-                                            <th className="border-b border-lx-line px-2 py-2 w-[210px]">Reassign to</th>
+                                            <th className="border-b border-lx-line px-2 py-2 min-w-[160px]">Reassign to</th>
                                             <th className="border-b border-lx-line px-2 py-2 w-[40px] text-center">Undo</th>
                                         </tr>
                                     </thead>
@@ -399,8 +399,8 @@ export default function AssignmentEditorModal({
                     <h4 className="mb-2 text-xs font-black uppercase tracking-wide text-slate-600">
                         Assigned rooms ({myTasks.length + incomingTasks.length})
                     </h4>
-                    <div className="overflow-hidden rounded-xl border border-lx-border">
-                        <table className="w-full border-collapse text-xs">
+                    <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
+                        <table className="w-full min-w-[720px] border-collapse text-xs">
                             <thead>
                                 <tr className="bg-slate-50 text-left text-[10px] font-black uppercase text-slate-500">
                                     <th className="border-b border-lx-line px-2 py-2">Room</th>
@@ -410,7 +410,7 @@ export default function AssignmentEditorModal({
                                     <th className="border-b border-lx-line px-2 py-2 text-right">Pts</th>
                                     <th className="border-b border-lx-line px-2 py-2 text-right">Min</th>
                                     <th className="border-b border-lx-line px-2 py-2">Required By</th>
-                                    <th className="border-b border-lx-line px-2 py-2 w-[210px]">Reassign to</th>
+                                    <th className="border-b border-lx-line px-2 py-2 min-w-[160px]">Reassign to</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -474,8 +474,8 @@ export default function AssignmentEditorModal({
                                 {addPickerOpen ? '▾' : '▸'} Add unassigned tasks to {housekeeper.name} ({unassignedTasks.length} available)
                             </button>
                             {addPickerOpen && (
-                                <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-lx-border">
-                                    <table className="w-full border-collapse text-xs">
+                                <div className="mt-2 max-h-64 overflow-x-auto overflow-y-auto overscroll-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
+                                    <table className="w-full min-w-[480px] border-collapse text-xs">
                                         <thead>
                                             <tr className="bg-slate-50 text-left text-[10px] font-black uppercase text-slate-500">
                                                 <th className="border-b border-lx-line px-2 py-2 w-8"></th>
@@ -505,7 +505,7 @@ export default function AssignmentEditorModal({
                                             ))}
                                         </tbody>
                                     </table>
-                                    <div className="flex justify-end gap-2 border-t border-lx-line bg-slate-50 px-3 py-2">
+                                    <div className="flex flex-col gap-2 border-t border-lx-line bg-slate-50 px-3 py-2 sm:flex-row sm:justify-end">
                                         <button
                                             type="button"
                                             onClick={() => setAddSelection({})}
@@ -529,17 +529,17 @@ export default function AssignmentEditorModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between gap-3 border-t border-lx-line bg-slate-50 px-6 py-3">
+                <div className="flex flex-col gap-3 border-t border-lx-line bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <div className="text-xs text-slate-500">
                         {changesArray.length === 0
                             ? 'No changes yet.'
                             : `${changesArray.length} pending change${changesArray.length === 1 ? '' : 's'}.`}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex w-full flex-wrap justify-stretch gap-2 sm:w-auto sm:justify-end">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-[10px] border border-lx-border bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
+                            className="flex-1 rounded-[10px] border border-lx-border bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 sm:flex-none"
                         >
                             Cancel
                         </button>
@@ -547,7 +547,7 @@ export default function AssignmentEditorModal({
                             type="button"
                             onClick={handleSave}
                             disabled={isSaving || changesArray.length === 0}
-                            className="rounded-[10px] bg-lx-blue px-4 py-2 text-xs font-black text-white disabled:bg-slate-300"
+                            className="flex-1 rounded-[10px] bg-lx-blue px-4 py-2 text-xs font-black text-white disabled:bg-slate-300 sm:flex-none"
                         >
                             {isSaving ? 'Saving…' : `Save ${changesArray.length || ''} change${changesArray.length === 1 ? '' : 's'}`.trim()}
                         </button>

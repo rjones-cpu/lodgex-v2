@@ -11,6 +11,7 @@ import OnHoldModal from '../Components/Dashboard/OnHoldModal';
 import ReservationNotesModal from '../Components/Dashboard/ReservationNotesModal';
 import { AppPageBody, AppPageHeader, AppPageShell } from '../Components/AppPageShell';
 import AppLayout from '../Layouts/AppLayout';
+import UserAccountMenu from '../Components/AccommodationWorkforce/UserAccountMenu';
 
 // Each metric carries its own palette: the border ring, the gradient accent
 // bar (left edge of the card), and the icon bubble fill/foreground. The
@@ -175,8 +176,10 @@ const TABS = [
         ),
     },
     {
+        // Key kept as Checked-In for stable filter wiring; label matches camp
+        // reservations "In House" tab (statuses in_house / checked_in → Check-In).
         key: 'Checked-In',
-        label: 'Checked-In',
+        label: 'In House',
         icon: (
             <svg {...TAB_ICON_PROPS}>
                 <path d="M14 4h6v6" />
@@ -234,18 +237,8 @@ const TABS = [
             </svg>
         ),
         title:
-            'Extensions: stays past original departure · Walk-Ins: walk-up requests · No-Shows: did not arrive by 07:00 next day · Schedule Discrepancy: schedule and reservation mismatch · Schedule Changes: requested date changes',
+            'Pending modification requests from Reservation Managers and others (same list as camp Manager dashboard)',
     },
-];
-
-// Sub-statuses that surface under the combined Modification Requests tab.
-const MODIFICATION_STATUSES = [
-    'Extension',
-    'Walk-In',
-    'No-Show',
-    'Schedule Discrepancy',
-    'Schedule Change',
-    'Hold for Review',
 ];
 
 // Schedule colors mirrored from the company schedule system (Yellow, Blue,
@@ -309,9 +302,11 @@ function scheduleDiscrepancy(reservation) {
     return null;
 }
 
-// Statuses for reservations still awaiting arrival (not yet in-house / checked
-// out). These feed the Waitlisted and 24-Hr Arrival queues.
+// Camp Waitlisted (`pending` tab) = pending + arrivals → LodgeX Pending / Arrival.
 const AWAITING_ARRIVAL_STATUSES = ['Pending', 'Arrival'];
+
+// Camp History tab: no_sleep / check_out / no_show.
+const HISTORY_STATUSES = ['Check-Out', 'No-Show', 'No-Sleep'];
 
 function parseReservationDate(value) {
     if (!value) return null;
@@ -325,24 +320,20 @@ function startOfDay(date) {
     return d;
 }
 
-// True when a reservation is expected to arrive within the next 24 hours and is
-// still awaiting check-in. Arrival strings are date-only, so the window spans
-// from the start of today through 24h from now.
-function isArrivingWithin24h(reservation, now = new Date()) {
-    if (!AWAITING_ARRIVAL_STATUSES.includes(reservation.status)) return false;
-    const arrival = parseReservationDate(reservation.arrival);
-    if (!arrival) return false;
-    const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    return arrival.getTime() >= startOfDay(now).getTime() && arrival.getTime() <= windowEnd.getTime();
+/**
+ * Prefer ISO arrivalDate from the backend; fall back to the display arrival string.
+ */
+function reservationArrivalDate(reservation) {
+    return parseReservationDate(reservation.arrivalDate || reservation.arrival);
 }
 
 // A reservation is overdue once it is still awaiting arrival and the clock has
 // passed 12:00 PM on the day AFTER its expected arrival without it being marked
-// in-house (Check-In). Overdue reservations roll into the Discrepancies queue
-// automatically and drop out of the Waitlisted / 24-Hr Arrival queues.
+// in-house (Check-In). Overdue rows stay on Waitlisted when campTabs say so,
+// and are also surfaced under Discrepancies.
 function isArrivalOverdue(reservation, now = new Date()) {
     if (!AWAITING_ARRIVAL_STATUSES.includes(reservation.status)) return false;
-    const arrival = parseReservationDate(reservation.arrival);
+    const arrival = reservationArrivalDate(reservation);
     if (!arrival) return false;
     const deadline = startOfDay(arrival);
     deadline.setDate(deadline.getDate() + 1);
@@ -350,37 +341,34 @@ function isArrivalOverdue(reservation, now = new Date()) {
     return now.getTime() > deadline.getTime();
 }
 
+const CAMP_ALIGNED_TABS = ['Waitlisted', '24-Hr Arrival', 'Checked-In', 'On-Hold', 'History'];
+
 // Maps a Reservation Operations queue tab to the reservations it surfaces.
-// Used both to filter the table and to compute the per-tab count badges so
-// the two never drift apart.
+// Camp-aligned tabs trust `campTabs` from the Manager /reservations query.
 function reservationMatchesTab(tabKey, reservation) {
+    if (CAMP_ALIGNED_TABS.includes(tabKey) && Array.isArray(reservation.campTabs)) {
+        return reservation.campTabs.includes(tabKey);
+    }
+
     switch (tabKey) {
         case 'All':
             return true;
         case 'Waitlisted':
-            // Everything still awaiting arrival — all Pending and Arrival
-            // reservations — except those that have gone overdue (they move to
-            // Discrepancies).
-            return (
-                AWAITING_ARRIVAL_STATUSES.includes(reservation.status) &&
-                !isArrivalOverdue(reservation)
-            );
+            return AWAITING_ARRIVAL_STATUSES.includes(reservation.status);
         case '24-Hr Arrival':
-            // Awaiting reservations expected to arrive within the next 24 hours.
-            return isArrivingWithin24h(reservation) && !isArrivalOverdue(reservation);
+            return reservation.in24HrArrival === true;
         case 'Checked-In':
             return reservation.status === 'Check-In';
         case 'On-Hold':
             return reservation.status === 'On-Hold';
         case 'History':
-            // Completed stays.
-            return reservation.status === 'Check-Out';
+            return HISTORY_STATUSES.includes(reservation.status);
         case 'Discrepancies':
-            // Schedule-color mismatches plus arrivals that blew past the
-            // noon-next-day in-house deadline.
             return scheduleDiscrepancy(reservation) !== null || isArrivalOverdue(reservation);
         case 'Modification Request':
-            return MODIFICATION_STATUSES.includes(reservation.status);
+            // Served from `modificationRequests` prop (request_reservations), not
+            // reservation status filters.
+            return false;
         default:
             return reservation.status === tabKey;
     }
@@ -493,14 +481,10 @@ const SORTABLE_COLUMNS = [
     { key: 'departure', label: 'Departure', type: 'date' },
     { key: 'room', label: 'Room Assignment' },
     {
-        // Was 'Allotment'; the column now surfaces the On-Hold permission
-        // (sourced from the reservation's onHoldAllowed flag, edited via the
-        // Info Card modal). Yes sorts first when ascending so the lodge
-        // manager can quickly find rooms eligible to be placed on hold.
-        key: 'onHoldAllowed',
+        // Was 'Allotment'; mirrors camp `/reservations` ONHOLD column
+        // (company onhold_policy → date when yes, else No / N/A).
+        key: 'onHoldDisplay',
         label: 'On-hold',
-        type: 'priority',
-        order: { true: 1, false: 0 },
     },
     {
         // Replaces the previous 'Approval' column. Approval data still lives on
@@ -656,8 +640,13 @@ function enrichReservation(row) {
         firstName: row.firstName || workerFirstName(row.worker),
         lastName: row.lastName || workerLastName(row.worker),
         // Predetermined permission: whether this reservation is authorized
-        // to place their room On-Hold. Defaults to true when not provided.
-        onHoldAllowed: row.onHoldAllowed ?? true,
+        // to place their room On-Hold. Driven by company onhold_policy from
+        // camp when present; defaults to false so we never invent a "Yes".
+        onHoldAllowed: row.onHoldAllowed === true,
+        // Camp ONHOLD column display (date / No / N/A / policy text).
+        onHoldDisplay: typeof row.onHoldDisplay === 'string' && row.onHoldDisplay.length > 0
+            ? row.onHoldDisplay
+            : (row.onHoldAllowed === true ? 'Yes' : 'N/A'),
         // Notes timeline for this reservation. Each entry is
         //   { author: string, text: string, createdAt: ISO-string }.
         // Strings from older payloads are migrated into a single legacy entry
@@ -745,8 +734,167 @@ function formatMetricValue(value) {
     return typeof value === 'number' ? value.toLocaleString() : value;
 }
 
+/**
+ * Drop duplicate queue rows within a tab. Same booking id always collapses;
+ * otherwise the same guest + stay window + status is treated as one entry
+ * (camp occasionally has near-duplicate booking rows for one person).
+ */
+function dedupeQueueRows(rows) {
+    const result = [];
+    const seenIds = new Set();
+    const seenBookings = new Set();
+    const stayIndex = new Map();
+
+    const score = (r) => {
+        let s = 0;
+        if (r.roomId) s += 100;
+        if (r.in24HrArrival) s += 10;
+        if (r.room && r.room !== 'Unassigned' && r.room !== '—') s += 5;
+        s += Number(r.id) || 0;
+        return s;
+    };
+
+    for (const r of rows) {
+        if (r.id != null) {
+            const idKey = String(r.id);
+            if (seenIds.has(idKey)) continue;
+            seenIds.add(idKey);
+        }
+
+        const bookingKey = r.externalBookingId != null && String(r.externalBookingId) !== ''
+            ? String(r.externalBookingId)
+            : null;
+        if (bookingKey) {
+            if (seenBookings.has(bookingKey)) continue;
+            seenBookings.add(bookingKey);
+        }
+
+        const stayKey = [
+            String(r.worker || '').trim().toLowerCase(),
+            r.arrivalDate || r.arrival || '',
+            r.departureDate || r.departure || '',
+            r.status || '',
+        ].join('|');
+
+        if (stayIndex.has(stayKey)) {
+            const idx = stayIndex.get(stayKey);
+            if (score(r) > score(result[idx])) {
+                result[idx] = r;
+            }
+            continue;
+        }
+
+        stayIndex.set(stayKey, result.length);
+        result.push(r);
+    }
+
+    return result;
+}
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200, 500];
+
+/** Compact page list: 1 … 4 5 6 … 20 */
+function visiblePageNumbers(current, total) {
+    if (total <= 7) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages = new Set([1, total, current, current - 1, current + 1, current - 2, current + 2]);
+    const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+    const out = [];
+    for (let i = 0; i < sorted.length; i++) {
+        if (i > 0 && sorted[i] - sorted[i - 1] > 1) out.push('…');
+        out.push(sorted[i]);
+    }
+    return out;
+}
+
+function QueuePaginationBar({
+    pageSize,
+    onPageSizeChange,
+    page,
+    totalPages,
+    onPageChange,
+    pageStart,
+    pageEnd,
+    totalEntries,
+}) {
+    const pages = visiblePageNumbers(page, totalPages);
+
+    return (
+        <div className="flex flex-col gap-3 p-4 text-[13px] text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-3 sm:p-[18px]">
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                <label className="inline-flex shrink-0 items-center gap-2 font-semibold text-lx-ink">
+                    <span className="whitespace-nowrap">Show</span>
+                    <select
+                        value={pageSize}
+                        onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                        aria-label="Rows per page"
+                        className="box-border h-9 w-[5rem] min-w-[5rem] shrink-0 rounded-lg border border-lx-border bg-white py-1 pl-2.5 pr-7 text-[13px] font-bold leading-none text-lx-ink outline-none focus:border-lx-blue sm:h-8 sm:w-[5.5rem] sm:min-w-[5.5rem] sm:pr-8"
+                    >
+                        {PAGE_SIZE_OPTIONS.map((n) => (
+                            <option key={n} value={n}>
+                                {n}
+                            </option>
+                        ))}
+                    </select>
+                    <span className="whitespace-nowrap">entries</span>
+                </label>
+                <span className="min-w-0 break-words">
+                    {totalEntries === 0
+                        ? 'Showing 0 entries'
+                        : `Showing ${pageStart} to ${pageEnd} of ${totalEntries} entries`}
+                </span>
+            </div>
+            <div className="flex max-w-full flex-wrap items-center gap-0.5">
+                <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => onPageChange(page - 1)}
+                    aria-label="Previous page"
+                    className="mx-0.5 h-8 min-w-8 cursor-pointer rounded-lg border border-lx-border bg-white px-2 font-extrabold text-lx-ink disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                    ‹
+                </button>
+                {pages.map((p, i) =>
+                    p === '…' ? (
+                        <span
+                            key={`ellipsis-${i}`}
+                            className="mx-0.5 grid h-8 w-8 place-items-center text-slate-400"
+                        >
+                            …
+                        </span>
+                    ) : (
+                        <button
+                            key={p}
+                            type="button"
+                            onClick={() => onPageChange(p)}
+                            aria-current={p === page ? 'page' : undefined}
+                            className={`mx-0.5 h-8 min-w-8 cursor-pointer rounded-lg border border-lx-border px-2 font-extrabold ${
+                                p === page ? 'bg-lx-blue text-white' : 'bg-white text-lx-ink'
+                            }`}
+                        >
+                            {p}
+                        </button>
+                    ),
+                )}
+                <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => onPageChange(page + 1)}
+                    aria-label="Next page"
+                    className="mx-0.5 h-8 min-w-8 cursor-pointer rounded-lg border border-lx-border bg-white px-2 font-extrabold text-lx-ink disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                    ›
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function Dashboard({
     reservations: serverReservations = [],
+    modificationRequests: serverModificationRequests = [],
+    campDashboardUrl = null,
     assignableRooms = [],
     metricValues = {},
     lodgePolicy = null,
@@ -763,13 +911,17 @@ export default function Dashboard({
     const userName = auth?.user?.name || 'John Doe';
     const userInitials = getInitials(userName);
 
-    const initialRows = (serverReservations.length ? serverReservations : SEED_RESERVATIONS).map(
-        enrichReservation,
+    const initialRows = dedupeQueueRows(
+        (serverReservations.length ? serverReservations : SEED_RESERVATIONS).map(enrichReservation),
     );
 
     const [reservations, setReservations] = useState(initialRows);
+    const [modificationRequests, setModificationRequests] = useState(() =>
+        (Array.isArray(serverModificationRequests) ? serverModificationRequests : []).map(enrichReservation),
+    );
     const [activeTab, setActiveTab] = useState('All');
-    const [selectedIndex, setSelectedIndex] = useState(Math.min(3, Math.max(initialRows.length - 1, 0)));
+    // -1 = no row selected → Control Panel is hidden.
+    const [selectedIndex, setSelectedIndex] = useState(-1);
     const [statusFilter, setStatusFilter] = useState('All');
     const [priorityFilter, setPriorityFilter] = useState('All');
     const [sort, setSort] = useState({ key: null, dir: 'asc' });
@@ -799,6 +951,9 @@ export default function Dashboard({
     const [extendSaving, setExtendSaving] = useState(false);
     const [extendError, setExtendError] = useState('');
     const [assignError, setAssignError] = useState('');
+    // Client-side queue pagination (filtered/sorted rows, not the full DB).
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     const dropdownRef = useRef(null);
     const toastTimeoutRef = useRef(null);
@@ -808,8 +963,22 @@ export default function Dashboard({
     const otherInitialMountRef = useRef(true);
 
     const statusOptions = STATUS_FILTER_OPTIONS;
+    const isModTab = activeTab === 'Modification Request';
 
     const filtered = useMemo(() => {
+        // Camp Manager dashboard: modification requests come from request_reservations,
+        // not from reservation status filters.
+        if (isModTab) {
+            let rows = modificationRequests;
+            if (search) {
+                const s = search.toLowerCase();
+                rows = rows.filter((r) =>
+                    `${r.worker} ${r.company} ${r.status} ${r.requestedBy}`.toLowerCase().includes(s),
+                );
+            }
+            return rows;
+        }
+
         let rows = reservations.filter((r) => reservationMatchesTab(activeTab, r));
         if (statusFilter !== 'All') rows = rows.filter((r) => r.status === statusFilter);
         if (priorityFilter !== 'All') rows = rows.filter((r) => r.approval === priorityFilter);
@@ -817,19 +986,25 @@ export default function Dashboard({
             const s = search.toLowerCase();
             rows = rows.filter((r) => `${r.worker} ${r.company} ${r.room}`.toLowerCase().includes(s));
         }
-        return rows;
-    }, [reservations, activeTab, statusFilter, priorityFilter, search]);
+        return dedupeQueueRows(rows);
+    }, [reservations, modificationRequests, isModTab, activeTab, statusFilter, priorityFilter, search]);
 
     // Per-tab counts for the queue tab badges. Computed against the full
     // reservation set (not the active filter) so each badge always reflects how
-    // many rows live in that queue.
+    // many rows live in that queue — after the same dedupe applied to the table.
     const tabCounts = useMemo(() => {
         const counts = {};
         for (const t of TABS) {
-            counts[t.key] = reservations.filter((r) => reservationMatchesTab(t.key, r)).length;
+            if (t.key === 'Modification Request') {
+                counts[t.key] = modificationRequests.length;
+                continue;
+            }
+            counts[t.key] = dedupeQueueRows(
+                reservations.filter((r) => reservationMatchesTab(t.key, r)),
+            ).length;
         }
         return counts;
-    }, [reservations]);
+    }, [reservations, modificationRequests]);
 
     const sortedFiltered = useMemo(() => {
         if (!sort.key) return filtered;
@@ -865,6 +1040,27 @@ export default function Dashboard({
         return rows;
     }, [filtered, sort]);
 
+    const totalEntries = sortedFiltered.length;
+    const totalPages = Math.max(1, Math.ceil(totalEntries / pageSize) || 1);
+    const currentPage = Math.min(page, totalPages);
+    const pageStart = totalEntries === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const pageEnd = Math.min(currentPage * pageSize, totalEntries);
+    const pagedRows = useMemo(
+        () => sortedFiltered.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+        [sortedFiltered, currentPage, pageSize],
+    );
+
+    // Reset to page 1 when the visible queue set or page size changes.
+    useEffect(() => {
+        setPage(1);
+    }, [activeTab, statusFilter, priorityFilter, search, pageSize, sort.key, sort.dir]);
+
+    // Keep page in range when the filtered total shrinks (e.g. after a tab change
+    // that already reset to 1, or when rows are removed mid-session).
+    useEffect(() => {
+        if (page > totalPages) setPage(totalPages);
+    }, [page, totalPages]);
+
     function requestSort(key) {
         setSort((prev) => {
             if (prev.key !== key) return { key, dir: 'asc' };
@@ -873,7 +1069,9 @@ export default function Dashboard({
         });
     }
 
-    const selected = reservations[selectedIndex];
+    const selected = selectedIndex >= 0
+        ? (isModTab ? modificationRequests[selectedIndex] : reservations[selectedIndex])
+        : null;
 
     function flash(message) {
         setToast(message);
@@ -881,8 +1079,20 @@ export default function Dashboard({
         toastTimeoutRef.current = setTimeout(() => setToast(''), 2400);
     }
 
+    /** Select a queue row, or clear selection if the same row is toggled off. */
+    function toggleSelection(index) {
+        if (selectedIndex === index) {
+            setSelectedIndex(-1);
+            setSelectedOtherOpen(false);
+            setDropdown((d) => ({ ...d, open: false }));
+            return;
+        }
+        setSelectedIndex(index);
+    }
+
     function setTab(key) {
         setActiveTab(key);
+        setSelectedIndex(-1);
         const tab = TABS.find((t) => t.key === key);
         flash(`Showing ${tab ? tab.label : key} queue`);
     }
@@ -925,6 +1135,16 @@ export default function Dashboard({
     }
 
     function updateSelectedField(field, value) {
+        if (isModTab) {
+            setModificationRequests((rows) => {
+                const next = [...rows];
+                if (next[selectedIndex]) {
+                    next[selectedIndex] = { ...next[selectedIndex], [field]: value };
+                }
+                return next;
+            });
+            return;
+        }
         setReservations((rows) => {
             const next = [...rows];
             if (next[selectedIndex]) {
@@ -1411,7 +1631,7 @@ export default function Dashboard({
         // a room assignment — making the just-assigned room look like it never
         // landed. Re-resolve the selection by its stable id instead.
         const previousId = reservations[selectedIndex]?.id;
-        const enriched = serverReservations.map(enrichReservation);
+        const enriched = dedupeQueueRows(serverReservations.map(enrichReservation));
         setReservations(enriched);
 
         if (previousId != null) {
@@ -1567,45 +1787,54 @@ export default function Dashboard({
 
             <AppLayout activeHref="dashboard">
                 <AppPageShell>
-                    <AppPageHeader className="sticky top-0 z-20 flex h-[78px] items-center justify-between border-b border-lx-border bg-white px-6 max-[1100px]:sticky min-[1101px]:static">
-                        <div>
-                            <h1 className="m-0 text-[26px] tracking-[-0.5px] text-lx-navy">
+                    <AppPageHeader className="sticky top-0 z-20 flex h-[78px] shrink-0 items-center justify-between gap-4 border-b border-lx-border bg-white px-6 max-[1100px]:sticky min-[1101px]:static">
+                        <div className="min-w-0 shrink">
+                            <h1 className="m-0 truncate text-[26px] tracking-[-0.5px] text-lx-navy">
                                 Reservation Operations Center
                             </h1>
-                            <p className="mt-0.5 text-[13px] font-semibold text-slate-500">
+                            <p className="mt-0.5 truncate text-[13px] font-semibold text-slate-500 max-[1100px]:hidden">
                                 Unified control for reservation approvals, room movement, arrivals, and exception handling.
                             </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-xs font-extrabold text-slate-500">
+                        <div className="flex shrink-0 items-center gap-4 whitespace-nowrap">
+                            <span className="whitespace-nowrap text-xs font-extrabold text-slate-500 max-[1280px]:hidden">
                                 Last updated: May 20, 2025 09:30 AM
                             </span>
                             <input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search reservations, workers, company, or room..."
-                                className="h-[42px] w-[420px] max-w-[35vw] rounded-xl border border-lx-border bg-white px-3.5 outline-none focus:border-lx-blue max-[1100px]:hidden"
+                                className="h-[42px] w-[280px] shrink rounded-xl border border-lx-border bg-white px-3.5 outline-none focus:border-lx-blue max-[1100px]:w-[200px] min-[1400px]:w-[420px]"
                             />
                             <span aria-hidden>🔔</span>
                             <span aria-hidden>❔</span>
-                            <div className="flex items-center gap-2.5">
+                            <UserAccountMenu
+                                userName={userName}
+                                userEmail={auth?.user?.email}
+                                userInitials={userInitials}
+                                triggerClassName="flex shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border border-transparent px-1.5 py-1 transition hover:border-lx-border hover:bg-[#f6faff]"
+                            >
                                 <div className="grid h-[38px] w-[38px] place-items-center rounded-full bg-lx-blue font-black text-white">
                                     {userInitials}
                                 </div>
-                                <div className="text-xs">
+                                <div className="whitespace-nowrap text-left text-xs max-[900px]:hidden">
                                     <strong>{userName}</strong>
                                     <br />
                                     <span className="text-slate-500">Operations Manager</span>
                                 </div>
-                            </div>
+                            </UserAccountMenu>
                         </div>
                     </AppPageHeader>
 
-                    <AppPageBody>
-                        <section className="grid grid-cols-[1fr_360px] items-start gap-[18px] max-[1100px]:grid-cols-1">
-                            <div>
-                                <section className="mb-[18px] rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-4 shadow-lg shadow-blue-100/50">
-                                    <div className="grid grid-cols-8 gap-2.5 max-[1450px]:grid-cols-4 max-[900px]:grid-cols-2">
+                    <AppPageBody className="p-4 sm:p-6">
+                        <section
+                            className={`grid grid-cols-1 items-start gap-[18px] ${
+                                selected ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''
+                            }`}
+                        >
+                            <div className="min-w-0">
+                                <section className="mb-[18px] rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-3 shadow-lg shadow-blue-100/50 sm:p-4">
+                                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-8">
                                         {metrics.map((m) => (
                                             <div
                                                 key={m.label}
@@ -1655,41 +1884,40 @@ export default function Dashboard({
                                     </div>
                                 </section>
                                 <div className="overflow-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card min-[1101px]:sticky min-[1101px]:top-0 min-[1101px]:z-10">
-                                    {/* Interlocking chevron queue tabs (per design mock): on wide
-                                        screens each tab is clipped into an arrow and overlaps its
-                                        neighbour; below 1100px they fall back to plain rounded pills
-                                        that scroll horizontally. */}
-                                    <div className="flex gap-2 overflow-x-auto border-b border-lx-border bg-white p-3 min-[1100px]:gap-0">
+                                    {/* Queue tabs: size to label content and scroll horizontally so
+                                        names never clip. Chevron interlocking only on very wide
+                                        screens where there is room for every tab. */}
+                                    <div className="-mx-px flex gap-2 overflow-x-auto overscroll-x-contain border-b border-lx-border bg-white p-3 [scrollbar-width:thin] min-[1600px]:gap-0">
                                         {TABS.map((t, i) => {
                                             const isActive = activeTab === t.key;
                                             const tabTitle =
                                                 t.key === 'Modification Request'
-                                                    ? `Extensions: stays past original departure · Walk-Ins: walk-up requests · No-Shows: did not arrive by ${policy.noShow?.cutoffTime ?? '07:00'} next day · Schedule Discrepancy: schedule and reservation mismatch · Schedule Changes: requested date changes`
+                                                    ? 'Pending modification requests from Reservation Managers and others (same list as camp Manager dashboard)'
                                                     : t.title || '';
                                             const isFirst = i === 0;
                                             const isLast = i === TABS.length - 1;
                                             const shape = isFirst
-                                                ? 'min-[1100px]:rounded-l-2xl min-[1100px]:pr-7 min-[1100px]:[clip-path:polygon(0_0,94%_0,100%_50%,94%_100%,0_100%)]'
+                                                ? 'min-[1600px]:rounded-l-2xl min-[1600px]:pr-7 min-[1600px]:[clip-path:polygon(0_0,94%_0,100%_50%,94%_100%,0_100%)]'
                                                 : isLast
-                                                  ? 'min-[1100px]:-ml-px min-[1100px]:rounded-r-2xl min-[1100px]:pl-6 min-[1100px]:[clip-path:polygon(0_0,100%_0,100%_100%,0_100%,6%_50%)]'
-                                                  : 'min-[1100px]:-ml-px min-[1100px]:pl-6 min-[1100px]:pr-7 min-[1100px]:[clip-path:polygon(0_0,94%_0,100%_50%,94%_100%,0_100%,6%_50%)]';
+                                                  ? 'min-[1600px]:-ml-px min-[1600px]:rounded-r-2xl min-[1600px]:pl-6 min-[1600px]:[clip-path:polygon(0_0,100%_0,100%_100%,0_100%,6%_50%)]'
+                                                  : 'min-[1600px]:-ml-px min-[1600px]:pl-6 min-[1600px]:pr-7 min-[1600px]:[clip-path:polygon(0_0,94%_0,100%_50%,94%_100%,0_100%,6%_50%)]';
                                             return (
                                                 <button
                                                     key={t.key}
                                                     onClick={() => setTab(t.key)}
                                                     title={tabTitle}
-                                                    className={`relative flex h-16 min-w-[128px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-xl border px-4 transition-colors ${shape} ${
+                                                    className={`relative flex h-14 shrink-0 cursor-pointer items-center justify-between gap-2.5 rounded-xl border px-3.5 transition-colors sm:h-16 sm:px-4 ${shape} ${
                                                         isActive
                                                             ? 'z-[2] border-[#2b74ff] bg-gradient-to-b from-[#1d75ff] to-[#005bff] text-white shadow-[0_10px_24px_rgba(17,97,255,0.28)]'
                                                             : 'border-lx-border bg-white text-lx-blue hover:bg-[#f6faff]'
                                                     }`}
                                                 >
-                                                    <span className="flex min-w-0 items-center gap-3">
+                                                    <span className="flex items-center gap-2 sm:gap-3">
                                                         <span className="grid h-6 w-6 shrink-0 place-items-center">{t.icon}</span>
-                                                        <span className="whitespace-nowrap text-[15px] font-black leading-none">{t.label}</span>
+                                                        <span className="whitespace-nowrap text-[13px] font-black leading-none sm:text-[15px]">{t.label}</span>
                                                     </span>
                                                     <span
-                                                        className={`inline-flex h-[30px] min-w-[30px] shrink-0 items-center justify-center rounded-full px-2.5 text-sm font-black leading-none ${
+                                                        className={`inline-flex h-[28px] min-w-[28px] shrink-0 items-center justify-center rounded-full px-2 text-sm font-black leading-none sm:h-[30px] sm:min-w-[30px] sm:px-2.5 ${
                                                             isActive ? 'bg-white/20 text-white' : 'bg-[#eef4ff] text-lx-blue'
                                                         }`}
                                                     >
@@ -1700,8 +1928,8 @@ export default function Dashboard({
                                         })}
                                     </div>
 
-                                    <div className="flex items-center border-b border-lx-border px-[18px] py-4">
-                                        <div className="text-base font-black text-lx-navy">
+                                    <div className="flex flex-wrap items-center gap-2 border-b border-lx-border px-4 py-3 sm:px-[18px] sm:py-4">
+                                        <div className="min-w-0 text-sm font-black text-lx-navy sm:text-base">
                                             {queueTitle}
                                             <span className="ml-1.5 inline-block rounded-full bg-[#eaf2ff] px-2.5 py-1 text-xs font-bold text-lx-blue">
                                                 {filtered.length}
@@ -1709,15 +1937,24 @@ export default function Dashboard({
                                         </div>
                                     </div>
 
-                                    {/* Bounded scroll region so the column header can stay pinned to
-                                        the top of the widget while the rows scroll underneath. The
-                                        max-height keeps the whole card shorter than the viewport so it
-                                        can pin to the top of the dashboard scroll (sticky on the card). */}
-                                    <div className="max-h-[calc(100vh-210px)] overflow-auto">
-                                        <table className="w-full table-fixed border-collapse min-w-[1200px]">
+                                    <QueuePaginationBar
+                                        pageSize={pageSize}
+                                        onPageSizeChange={setPageSize}
+                                        page={currentPage}
+                                        totalPages={totalPages}
+                                        onPageChange={setPage}
+                                        pageStart={pageStart}
+                                        pageEnd={pageEnd}
+                                        totalEntries={totalEntries}
+                                    />
+
+                                    {/* Horizontal + vertical scroll so the wide queue fits any viewport
+                                        without clipping column headers or cell text. */}
+                                    <div className="max-h-[min(70vh,calc(100vh-210px))] overflow-auto overscroll-contain [scrollbar-width:thin] border-t border-lx-border">
+                                        <table className="w-full min-w-[1100px] border-collapse table-auto">
                                             <thead>
                                                 <tr>
-                                                    <th className="sticky top-0 z-20 w-[42px] border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb]">
+                                                    <th className="sticky top-0 z-20 w-[42px] whitespace-nowrap border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb]">
                                                         <input type="checkbox" />
                                                     </th>
                                                     {WORKER_NAME_COLUMNS.map((c) => {
@@ -1735,7 +1972,7 @@ export default function Dashboard({
                                                                             : 'descending'
                                                                         : 'none'
                                                                 }
-                                                                className="sticky top-0 z-20 w-[150px] cursor-pointer select-none border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb] hover:bg-[#eef4ff]"
+                                                                className="sticky top-0 z-20 cursor-pointer select-none whitespace-nowrap border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb] hover:bg-[#eef4ff]"
                                                             >
                                                                 {/* Offset the Last Name label by the avatar + gap (30px + 10px)
                                                                     so the header lines up with the name text below it. */}
@@ -1775,7 +2012,7 @@ export default function Dashboard({
                                                                             : 'descending'
                                                                         : 'none'
                                                                 }
-                                                                className={`sticky top-0 z-20 select-none border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb] ${
+                                                                className={`sticky top-0 z-20 select-none whitespace-nowrap border-b border-lx-line bg-[#fbfdff] p-3 text-left text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb] ${
                                                                     isSortable
                                                                         ? 'cursor-pointer hover:bg-[#eef4ff]'
                                                                         : ''
@@ -1796,14 +2033,16 @@ export default function Dashboard({
                                                             </th>
                                                         );
                                                     })}
-                                                    <th className="sticky top-0 z-20 w-[85px] border-b border-lx-line bg-[#fbfdff] p-3 text-center text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb]">
+                                                    <th className="sticky top-0 z-20 whitespace-nowrap border-b border-lx-line bg-[#fbfdff] p-3 text-center text-xs font-black text-lx-ink-soft shadow-[0_1px_0_0_#edf2fb]">
                                                         {activeTab === 'Modification Request' ? 'Open' : 'Action'}
                                                     </th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {sortedFiltered.map((r) => {
-                                                    const realIndex = reservations.indexOf(r);
+                                                {pagedRows.map((r) => {
+                                                    const realIndex = isModTab
+                                                        ? modificationRequests.indexOf(r)
+                                                        : reservations.indexOf(r);
                                                     const isSelected = realIndex === selectedIndex;
                                                     // On the Pinned tab, mirror the tab-level
                                                     // flash on each row whose remind-by has
@@ -1820,7 +2059,7 @@ export default function Dashboard({
                                                     return (
                                                         <tr
                                                             key={r.id ?? `${r.worker}-${realIndex}`}
-                                                            onClick={() => setSelectedIndex(realIndex)}
+                                                            onClick={() => toggleSelection(realIndex)}
                                                             className={`cursor-pointer transition-colors ${
                                                                 isOverduePin
                                                                     ? 'animate-pin-flash motion-reduce:animate-none motion-reduce:bg-orange-100'
@@ -1833,11 +2072,11 @@ export default function Dashboard({
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={isSelected}
-                                                                    onChange={() => setSelectedIndex(realIndex)}
+                                                                    onChange={() => toggleSelection(realIndex)}
                                                                     onClick={(e) => e.stopPropagation()}
                                                                 />
                                                             </td>
-                                                            <td className="border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">
+                                                            <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">
                                                                 <div className="flex items-center gap-2.5 font-extrabold">
                                                                     <span
                                                                         className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-lx-blue text-xs font-black text-white"
@@ -1847,7 +2086,7 @@ export default function Dashboard({
                                                                     {r.lastName || r.worker}
                                                                 </div>
                                                             </td>
-                                                            <td className="border-b border-lx-line p-3 align-middle text-[13px] font-extrabold text-lx-ink">
+                                                            <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] font-extrabold text-lx-ink">
                                                                 {r.firstName}
                                                             </td>
                                                             {activeTab === 'Modification Request' ? (
@@ -1877,41 +2116,66 @@ export default function Dashboard({
                                                                         )}
                                                                     </td>
                                                                     <td className="border-b border-lx-line p-3 text-center align-middle">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setSelectedIndex(realIndex);
-                                                                                setScheduleModRequestOpen(true);
-                                                                            }}
-                                                                            className="inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent p-0 text-[13px] font-black text-lx-blue underline-offset-2 hover:underline"
-                                                                            title="Open Schedule Modification Request"
-                                                                        >
-                                                                            Open
-                                                                            <span className="text-[11px] leading-none">↗</span>
-                                                                        </button>
+                                                                        {r.canOpen !== false ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setSelectedIndex(realIndex);
+                                                                                    // Camp Manager dashboard hosts the resolve / bill-out /
+                                                                                    // walk-in / schedule-modification modals.
+                                                                                    if (campDashboardUrl) {
+                                                                                        window.open(
+                                                                                            campDashboardUrl,
+                                                                                            '_blank',
+                                                                                            'noopener,noreferrer',
+                                                                                        );
+                                                                                        return;
+                                                                                    }
+                                                                                    if (
+                                                                                        r.requestType ===
+                                                                                            'schedule_modification_published' ||
+                                                                                        r.requestType ===
+                                                                                            'search_modification'
+                                                                                    ) {
+                                                                                        setScheduleModRequestOpen(true);
+                                                                                    }
+                                                                                }}
+                                                                                className="inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent p-0 text-[13px] font-black text-lx-blue underline-offset-2 hover:underline"
+                                                                                title={
+                                                                                    campDashboardUrl
+                                                                                        ? 'Open on camp Manager dashboard'
+                                                                                        : 'Open Schedule Modification Request'
+                                                                                }
+                                                                            >
+                                                                                Open
+                                                                                <span className="text-[11px] leading-none">↗</span>
+                                                                            </button>
+                                                                        ) : (
+                                                                            <span className="text-slate-400">—</span>
+                                                                        )}
                                                                     </td>
                                                                 </>
                                                             ) : (
                                                                 <>
-                                                                    <td className="border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">{r.company}</td>
-                                                                    <td className="border-b border-lx-line p-3 align-middle text-[13px] font-extrabold text-lx-ink">
+                                                                    <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">{r.company}</td>
+                                                                    <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] font-extrabold text-lx-ink">
                                                                         {r.shift || <span className="text-slate-400">—</span>}
                                                                     </td>
                                                                     <td
-                                                                        className="border-b border-lx-line p-3 align-middle text-[13px] font-extrabold text-lx-ink"
+                                                                        className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] font-extrabold text-lx-ink"
                                                                         title={PROVINCE_LABELS[r.province] || ''}
                                                                     >
                                                                         {r.province || <span className="text-slate-400">—</span>}
                                                                     </td>
-                                                                    <td className="border-b border-lx-line p-3 align-middle text-[13px]"><Pill value={r.status} /></td>
-                                                                    <td className="border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">{r.arrival}</td>
-                                                                    <td className="border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">{r.departure}</td>
-                                                                    <td className="border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">{r.room}</td>
-                                                                    <td className="border-b border-lx-line p-3 align-middle text-[13px]">
-                                                                        <Pill value={r.onHoldAllowed === false ? 'No' : 'Yes'} />
+                                                                    <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px]"><Pill value={r.status} /></td>
+                                                                    <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">{r.arrival}</td>
+                                                                    <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">{r.departure}</td>
+                                                                    <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">{r.room}</td>
+                                                                    <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px] text-lx-ink">
+                                                                        {r.onHoldDisplay || 'N/A'}
                                                                     </td>
-                                                                    <td className="border-b border-lx-line p-3 align-middle text-[13px]">
+                                                                    <td className="whitespace-nowrap border-b border-lx-line p-3 align-middle text-[13px]">
                                                                         {activeTab === 'Pinned' ? (
                                                                             // Pinned tab — Notes cell surfaces the manager-only
                                                                             // pin note + reminder via the Pin modal. The public
@@ -1963,24 +2227,19 @@ export default function Dashboard({
                                         </table>
                                     </div>
 
-                                    <div className="flex items-center justify-between p-[18px] text-[13px] text-slate-500">
-                                        <span>Showing 1 to {filtered.length} of {reservations.length} entries</span>
-                                        <div>
-                                            {['‹', '1', '2', '3', '4', '›'].map((p, i) => (
-                                                <button
-                                                    key={`${p}-${i}`}
-                                                    className={`mx-0.5 h-8 w-8 cursor-pointer rounded-lg border border-lx-border font-extrabold ${
-                                                        p === '1' ? 'bg-lx-blue text-white' : 'bg-white text-lx-ink'
-                                                    }`}
-                                                >
-                                                    {p}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <QueuePaginationBar
+                                        pageSize={pageSize}
+                                        onPageSizeChange={setPageSize}
+                                        page={currentPage}
+                                        totalPages={totalPages}
+                                        onPageChange={setPage}
+                                        pageStart={pageStart}
+                                        pageEnd={pageEnd}
+                                        totalEntries={totalEntries}
+                                    />
                                 </div>
 
-                                <div className="mt-[18px] grid grid-cols-5 gap-3 rounded-2xl border border-lx-border bg-white px-4 py-3 text-xs font-extrabold text-lx-ink max-[1100px]:grid-cols-1">
+                                <div className="mt-[18px] grid grid-cols-1 gap-3 rounded-2xl border border-lx-border bg-white px-4 py-3 text-xs font-extrabold text-lx-ink sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                                     {[
                                         'System Health: Operational',
                                         'AI Engine: Operational',
@@ -1988,7 +2247,7 @@ export default function Dashboard({
                                         'Integrations: Operational',
                                         'Data Sync: Auto-refresh ON',
                                     ].map((label) => (
-                                        <span key={label}>
+                                        <span key={label} className="min-w-0 break-words">
                                             <span className="text-green-600">●</span>{' '}
                                             {label}
                                         </span>
@@ -1996,10 +2255,11 @@ export default function Dashboard({
                                 </div>
                             </div>
 
+                            {selected && !selected.isModificationRequest && (
                             <aside
-                                className={`sticky top-4 self-start max-h-[calc(100vh-150px)] ${
-                                    selectedOtherOpen ? 'overflow-y-auto' : 'overflow-y-hidden'
-                                } overflow-x-hidden max-[1100px]:static max-[1100px]:max-h-none max-[1100px]:overflow-visible`}
+                                className={`min-w-0 xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-150px)] ${
+                                    selectedOtherOpen ? 'xl:overflow-y-auto' : 'xl:overflow-y-hidden'
+                                } overflow-x-hidden`}
                             >
                                 <ReservationControlPanel
                                     selected={selected}
@@ -2011,6 +2271,7 @@ export default function Dashboard({
                                     otherSectionRef={otherSectionRef}
                                 />
                             </aside>
+                            )}
                         </section>
                     </AppPageBody>
                 </AppPageShell>

@@ -102,6 +102,14 @@ Route::get('/room-utilization', [RoomUtilizationController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('room-utilization');
 
+Route::get('/room-utilization/overview', [RoomUtilizationController::class, 'overview'])
+    ->middleware(['auth', 'verified'])
+    ->name('room-utilization.overview');
+
+Route::get('/room-utilization/manage', [RoomUtilizationController::class, 'manage'])
+    ->middleware(['auth', 'verified'])
+    ->name('room-utilization.manage');
+
 Route::get('/forecasting', [ForecastingController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('forecasting');

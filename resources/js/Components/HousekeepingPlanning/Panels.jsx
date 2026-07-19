@@ -65,8 +65,8 @@ export function OverviewPanel({ planningSummary = {} }) {
 
 export function TaskBoardPanel({ rows = [] }) {
     return (
-        <div className="overflow-x-auto rounded-xl border border-lx-border">
-            <table className="w-full min-w-[800px] border-collapse">
+        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
+            <table className="w-full min-w-[720px] border-collapse">
                 <thead>
                     <tr>
                         <Th>Room</Th>
@@ -101,8 +101,8 @@ export function TaskBoardPanel({ rows = [] }) {
 export function AssignmentsPanel({ rows = [], tasks = null, housekeepers = null, onEdit = null }) {
     const editable = typeof onEdit === 'function' && Array.isArray(housekeepers);
     return (
-        <div className="overflow-x-auto rounded-xl border border-lx-border">
-            <table className="w-full border-collapse">
+        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
+            <table className="w-full min-w-[640px] border-collapse">
                 <thead>
                     <tr>
                         <Th>Housekeeper</Th>
@@ -276,8 +276,8 @@ export function HousekeepersPanel({ rows = [] }) {
     }
 
     return (
-        <div className="overflow-x-auto rounded-xl border border-lx-border">
-            <table className="w-full min-w-[800px] border-collapse">
+        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
+            <table className="w-full min-w-[720px] border-collapse">
                 <thead>
                     <tr>
                         <Th>Housekeeper</Th>
@@ -311,8 +311,8 @@ export function HousekeepersPanel({ rows = [] }) {
 
 export function ForecastPanel({ rows = [] }) {
     return (
-        <div className="overflow-x-auto rounded-xl border border-lx-border">
-            <table className="w-full border-collapse">
+        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
+            <table className="w-full min-w-[640px] border-collapse">
                 <thead>
                     <tr>
                         <Th>Date</Th>
@@ -344,8 +344,8 @@ export function ForecastPanel({ rows = [] }) {
 
 export function InspectionsPanel({ rows = [] }) {
     return (
-        <div className="overflow-x-auto rounded-xl border border-lx-border">
-            <table className="w-full border-collapse">
+        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
+            <table className="w-full min-w-[560px] border-collapse">
                 <thead>
                     <tr>
                         <Th>Room</Th>
@@ -403,8 +403,8 @@ export function AiPanel({ recommendations = [], onApprove, onDismiss }) {
             {recommendations.map((rec) => (
                 <div key={rec.id} className="rounded-xl border border-lx-border bg-[#fbfdff] p-4">
                     <div className="flex flex-wrap justify-between gap-2">
-                        <strong className="text-lx-navy">{rec.issue}</strong>
-                        <div className="flex gap-2">
+                        <strong className="min-w-0 text-lx-navy">{rec.issue}</strong>
+                        <div className="flex flex-wrap gap-2">
                             <span className="rounded-lg bg-[#eaf2ff] px-2 py-1 text-xs font-black text-lx-blue">
                                 {CATEGORY_LABELS[rec.category] || rec.category}
                             </span>
@@ -414,7 +414,7 @@ export function AiPanel({ recommendations = [], onApprove, onDismiss }) {
                     </div>
                     <p className="mt-2 text-xs text-lx-ink">{rec.recommendation}</p>
                     {rec.status === 'Pending' && (
-                        <div className="mt-3 flex gap-2">
+                        <div className="mt-3 flex flex-wrap gap-2">
                             <button type="button" onClick={() => onApprove(rec.id)} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-black text-white">Approve</button>
                             <button type="button" onClick={() => onDismiss(rec.id)} className="rounded-lg border border-lx-border px-3 py-1.5 text-xs font-black text-slate-600">Dismiss</button>
                         </div>

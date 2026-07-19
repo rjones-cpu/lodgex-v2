@@ -143,14 +143,14 @@ export default function HousekeepingPlanningManager({
             <Head title="Housekeeping Planning & Workload" />
             <AppLayout activeHref="housekeeping-planning">
                 <AppPageShell>
-                    <AppPageHeader className="shrink-0 px-[18px] pt-[18px]">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
+                    <AppPageHeader className="sticky top-0 z-20 shrink-0 border-b border-lx-border bg-white px-3 py-3 sm:px-[18px] sm:py-[18px] max-[1100px]:sticky min-[1101px]:static min-[1101px]:border-b-0">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                        <div className="min-w-0">
                             <p className="text-xs font-bold uppercase tracking-wide text-lx-blue">Smart Lodge Command Center</p>
-                            <h1 className="text-2xl font-black text-lx-navy">Housekeeping Planning & Workload</h1>
+                            <h1 className="text-xl font-black text-lx-navy sm:text-2xl">Housekeeping Planning & Workload</h1>
                             <p className="text-xs text-slate-500">Updated {lastUpdated}</p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                             <button type="button" onClick={publishAssignments} className="cursor-pointer rounded-[10px] bg-lx-blue px-4 py-2.5 text-sm font-black text-white">
                                 Publish Assignments
                             </button>
@@ -158,7 +158,7 @@ export default function HousekeepingPlanningManager({
                                 href={route('housekeeping-planning.publish-sheet')}
                                 target="_blank"
                                 rel="noopener"
-                                className="cursor-pointer rounded-[10px] border border-lx-blue bg-white px-4 py-2.5 text-sm font-black text-lx-blue hover:bg-blue-50"
+                                className="cursor-pointer rounded-[10px] border border-lx-blue bg-white px-4 py-2.5 text-center text-sm font-black text-lx-blue hover:bg-blue-50"
                             >
                                 🖨️ Open Publish Sheets
                             </Link>
@@ -166,8 +166,8 @@ export default function HousekeepingPlanningManager({
                     </div>
                     </AppPageHeader>
 
-                    <AppPageBody className="px-[18px] pb-[18px]">
-                    <div className="mb-4 grid grid-cols-4 gap-3 max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1">
+                    <AppPageBody className="px-3 pb-3 sm:px-[18px] sm:pb-[18px]">
+                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         {metrics.map((m) => (
                             <div key={m.label} className="rounded-2xl border border-lx-border bg-white p-4 shadow-lx-soft">
                                 <div className="text-2xl">{m.icon}</div>
@@ -178,9 +178,9 @@ export default function HousekeepingPlanningManager({
                         ))}
                     </div>
 
-                    <section className="grid grid-cols-1 gap-[18px] xl:grid-cols-[1fr_300px]">
-                        <div className="rounded-2xl border border-lx-border bg-white shadow-lx-card">
-                            <div className="flex gap-2 overflow-x-auto border-b border-lx-border px-3 py-3">
+                    <section className="grid grid-cols-1 gap-[18px] min-w-0 xl:grid-cols-[minmax(0,1fr)_300px]">
+                        <div className="min-w-0 rounded-2xl border border-lx-border bg-white shadow-lx-card">
+                            <div className="-mx-px flex gap-2 overflow-x-auto overscroll-x-contain border-b border-lx-border px-3 py-3 [scrollbar-width:thin]">
                                 {HK_TABS.map((t) => {
                                     const Icon = HK_TAB_ICONS[t.key] ?? BarChart3;
                                     const isActive = activeTab === t.key;
@@ -190,14 +190,14 @@ export default function HousekeepingPlanningManager({
                                             type="button"
                                             onClick={() => setActiveTab(t.key)}
                                             aria-pressed={isActive}
-                                            className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2.5 text-xs font-bold transition ${
+                                            className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2.5 text-xs font-bold transition sm:px-4 ${
                                                 isActive
                                                     ? 'border-lx-blue bg-lx-blue text-white shadow-sm'
                                                     : 'border-lx-border bg-white text-lx-ink hover:border-lx-blue/40 hover:bg-[#f0f6ff]'
                                             }`}
                                         >
                                             <Icon
-                                                className={`h-4 w-4 ${isActive ? 'text-white' : 'text-lx-blue'}`}
+                                                className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-lx-blue'}`}
                                                 strokeWidth={2.4}
                                             />
                                             <span>{t.label}</span>
@@ -205,10 +205,10 @@ export default function HousekeepingPlanningManager({
                                     );
                                 })}
                             </div>
-                            <div className="border-b border-lx-border px-[18px] py-4">
+                            <div className="border-b border-lx-border px-3 py-3 sm:px-[18px] sm:py-4">
                                 <h2 className="text-base font-black text-lx-navy">{tabLabel}</h2>
                             </div>
-                            <div className="p-[18px]">
+                            <div className="min-w-0 p-3 sm:p-[18px]">
                                 {activeTab === 'overview' && <OverviewPanel planningSummary={planningSummary} />}
                                 {activeTab === 'tasks' && <TaskBoardPanel rows={tasks} />}
                                 {activeTab === 'assignments' && (
@@ -219,18 +219,18 @@ export default function HousekeepingPlanningManager({
                                         onEdit={openAssignmentEditor}
                                     />
                                 )}
-                                        {activeTab === 'readiness' && (
-                                            <ReadinessPanel
-                                                risks={planningSummary.readinessRisks}
-                                                unassigned={planningSummary.unassignedTasks}
-                                                roomUtilization={roomUtilization}
-                                            />
-                                        )}
-                                        {activeTab === 'scenarios' && (
-                                            <ScenariosPanel presets={scenarioPresets} result={scenarioResult} onRun={runScenario} />
-                                        )}
-                                        {activeTab === 'schedule' && <ScheduleFeedsPanel feeds={scheduleFeeds} />}
-                                        {activeTab === 'housekeepers' && <HousekeepersPanel rows={housekeepersRoster} />}
+                                {activeTab === 'readiness' && (
+                                    <ReadinessPanel
+                                        risks={planningSummary.readinessRisks}
+                                        unassigned={planningSummary.unassignedTasks}
+                                        roomUtilization={roomUtilization}
+                                    />
+                                )}
+                                {activeTab === 'scenarios' && (
+                                    <ScenariosPanel presets={scenarioPresets} result={scenarioResult} onRun={runScenario} />
+                                )}
+                                {activeTab === 'schedule' && <ScheduleFeedsPanel feeds={scheduleFeeds} />}
+                                {activeTab === 'housekeepers' && <HousekeepersPanel rows={housekeepersRoster} />}
                                 {activeTab === 'forecast' && <ForecastPanel rows={forecasts} />}
                                 {activeTab === 'inspections' && <InspectionsPanel rows={inspections} />}
                                 {activeTab === 'productivity' && <ProductivityPanel rows={productivity} />}
@@ -240,7 +240,7 @@ export default function HousekeepingPlanningManager({
                             </div>
                         </div>
 
-                        <aside className="rounded-2xl border border-lx-border bg-white p-[18px] shadow-lx-card">
+                        <aside className="min-w-0 rounded-2xl border border-lx-border bg-white p-3 shadow-lx-card sm:p-[18px] xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-150px)] xl:overflow-y-auto">
                             <strong className="text-base text-lx-navy">AI Housekeeping Assistant</strong>
                             <p className="mt-1 text-xs text-slate-500">Recommend before acting — approval required</p>
                             <div className="mt-4">
@@ -261,7 +261,7 @@ export default function HousekeepingPlanningManager({
                 </AppPageShell>
             </AppLayout>
             {toast && (
-                <div className="fixed bottom-6 right-6 z-[2000] rounded-xl bg-lx-navy px-[18px] py-3.5 font-extrabold text-white shadow-lx-toast">
+                <div className="fixed bottom-6 left-4 right-4 z-[2000] mx-auto max-w-md rounded-xl bg-lx-navy px-[18px] py-3.5 text-center font-extrabold text-white shadow-lx-toast sm:left-auto sm:right-6 sm:mx-0 sm:text-left">
                     {toast}
                 </div>
             )}

@@ -10,6 +10,9 @@ class Worker extends Model
 {
     use BelongsToUser;
 
+    /** Legacy DB keeps LodgeX worker rows in `workers_old`; `workers` is camp schema. */
+    protected $table = 'workers_old';
+
     protected $fillable = [
         'user_id',
         'name',

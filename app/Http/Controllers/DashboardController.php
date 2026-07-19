@@ -6,6 +6,8 @@ use App\Models\LodgePolicy;
 use App\Models\Reservation;
 use App\Models\Room;
 use App\Support\LodgePolicyPresenter;
+use App\Services\AccommodationWorkforce\CampManagerModificationRequestsService;
+use App\Services\AccommodationWorkforce\CampManagerReservationsService;
 use App\Services\AccommodationWorkforce\WorkforceReservationSyncService;
 use App\Services\RoomUtilization\ReservationCheckInService;
 use App\Services\RoomUtilization\ReservationExtendStayService;
@@ -30,21 +32,31 @@ class DashboardController extends Controller
         private readonly ReservationExtendStayService $extendStayService,
         private readonly RoomAiMatchingService $aiMatching,
         private readonly WorkforceReservationSyncService $workforceSync,
+        private readonly CampManagerReservationsService $campManagerReservations,
+        private readonly CampManagerModificationRequestsService $campModificationRequests,
     ) {}
 
     public function index(Request $request): Response
     {
         // Mirror any Accommodation Workforce additions into the local reservation
         // queue before rendering (cached + fail-soft inside the service).
-        if ($user = $request->user()) {
+        $user = $request->user();
+        if ($user) {
             $this->workforceSync->syncForUser($user);
         }
 
         $policy = LodgePolicy::forCurrentUser();
         $lodgePolicy = LodgePolicyPresenter::present($policy);
 
+        $schedulingBase = rtrim((string) config('accommodation_workforce.scheduling_base', ''), '/');
+
         return Inertia::render('Dashboard', [
             'reservations' => $this->buildReservations(),
+            // Camp Manager `/dashboard` pending request_reservations (not reservation statuses).
+            'modificationRequests' => $user
+                ? $this->campModificationRequests->forUser($user)
+                : [],
+            'campDashboardUrl' => $schedulingBase !== '' ? $schedulingBase.'/dashboard' : null,
             'assignableRooms' => $this->buildAssignableRooms(),
             'metricValues' => $this->buildMetricValues(),
             'lastUpdated' => now()->format('M j, Y g:i A'),
@@ -243,33 +255,89 @@ class DashboardController extends Controller
         // recommendation in memory instead of re-querying per reservation.
         $assignablePool = $this->aiMatching->assignableRooms();
 
+        $tabSets = auth()->user()
+            ? $this->campManagerReservations->tabBookingIdSets(auth()->user())
+            : [
+                'Waitlisted' => [],
+                '24-Hr Arrival' => [],
+                'Checked-In' => [],
+                'On-Hold' => [],
+                'History' => [],
+            ];
+
+        // booking_id → list of LodgeX tab keys (Manager /reservations parity).
+        $tabsByBooking = [];
+        foreach ($tabSets as $tabKey => $bookingIds) {
+            foreach ($bookingIds as $bookingId) {
+                $tabsByBooking[(int) $bookingId][] = $tabKey;
+            }
+        }
+
         // Unassigned rooms surface first so "Rooms to Allocate" is prioritised,
         // but the cap must stay well above the active reservation count: a low
         // limit silently truncates the assigned-room rows (which sort last),
         // dropping reservations out of every queue once they get a room.
-        return Reservation::query()
+        $reservations = Reservation::query()
             ->with(['worker', 'room'])
             ->orderByRaw('CASE WHEN room_id IS NULL THEN 0 ELSE 1 END')
             ->orderBy('arrival_date')
-            ->limit(500)
+            ->limit(1000)
             ->get()
-            ->map(fn (Reservation $reservation) => $this->formatReservation($reservation, $assignablePool))
+            ->unique('id')
+            ->values();
+
+        $onHoldByBooking = $this->campManagerReservations->onHoldColumnByBookingIds(
+            $reservations
+                ->pluck('external_booking_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all()
+        );
+
+        return $reservations
+            ->map(fn (Reservation $reservation) => $this->formatReservation(
+                $reservation,
+                $assignablePool,
+                $tabsByBooking,
+                $onHoldByBooking,
+            ))
             ->values()
             ->all();
     }
 
     /**
      * @param  Collection<int, Room>  $assignablePool
+     * @param  array<int, list<string>>  $tabsByBooking
+     * @param  array<int, array{policy: ?string, display: string, allowed: bool}>  $onHoldByBooking
      * @return array<string, mixed>
      */
-    private function formatReservation(Reservation $reservation, Collection $assignablePool): array
-    {
+    private function formatReservation(
+        Reservation $reservation,
+        Collection $assignablePool,
+        array $tabsByBooking,
+        array $onHoldByBooking,
+    ): array {
         $worker = $reservation->worker;
         $room = $reservation->room;
 
         $recommended = $reservation->worker_id
             ? $this->aiMatching->bestRoomFromPool($reservation, $assignablePool)
             : null;
+
+        $bookingId = $reservation->external_booking_id !== null
+            ? (int) $reservation->external_booking_id
+            : 0;
+        $campTabs = $bookingId > 0 ? ($tabsByBooking[$bookingId] ?? []) : [];
+        $onHold = $bookingId > 0
+            ? ($onHoldByBooking[$bookingId] ?? null)
+            : null;
+
+        // Camp ONHOLD column: company onhold_policy — date when "yes", else policy / N/A.
+        $onHoldDisplay = $onHold['display']
+            ?? ($reservation->departure_date?->format('M j, Y') ?? 'N/A');
+        $onHoldAllowed = $onHold['allowed'] ?? false;
 
         return [
             'id' => $reservation->id,
@@ -280,6 +348,11 @@ class DashboardController extends Controller
             'departure' => $reservation->departure_date?->format('M j, Y') ?? '—',
             'arrivalDate' => $reservation->arrival_date?->format('Y-m-d'),
             'departureDate' => $reservation->departure_date?->format('Y-m-d'),
+            'externalBookingId' => $reservation->external_booking_id,
+            'campTabs' => array_values($campTabs),
+            'in24HrArrival' => in_array('24-Hr Arrival', $campTabs, true),
+            'onHoldDisplay' => $onHoldDisplay,
+            'onHoldAllowed' => $onHoldAllowed,
             'room' => $room ? "{$room->number} ({$room->dorm})" : 'Unassigned',
             'dorm' => $room?->dorm,
             'roomId' => $room?->id,

@@ -36,13 +36,13 @@ function SummaryStat({ label, value, hint }) {
 
 function SheetHeader({ title, subtitle }) {
     return (
-        <div className="mb-3 flex items-baseline justify-between border-b-2 border-slate-900 pb-2">
-            <div>
+        <div className="mb-3 flex flex-col gap-2 border-b-2 border-slate-900 pb-2 sm:flex-row sm:items-baseline sm:justify-between">
+            <div className="min-w-0">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">LodgeX · Smart Lodge</div>
                 <h2 className="text-lg font-black text-slate-900">{title}</h2>
                 {subtitle && <div className="text-xs text-slate-600">{subtitle}</div>}
             </div>
-            <div className="text-right text-[10px] text-slate-500">
+            <div className="shrink-0 text-left text-[10px] text-slate-500 sm:text-right">
                 <div>Housekeeping Workload Publish Form</div>
                 <div>Printed sheet — supervisor distribute one per housekeeper</div>
             </div>
@@ -52,8 +52,8 @@ function SheetHeader({ title, subtitle }) {
 
 function TaskTable({ rows, includeHousekeeperColumn = false }) {
     return (
-        <div className="overflow-hidden rounded border border-slate-300">
-            <table className="w-full border-collapse text-[11px]">
+        <div className="overflow-x-auto overscroll-x-contain rounded border border-slate-300 [scrollbar-width:thin] print:overflow-visible">
+            <table className="w-full min-w-[900px] border-collapse text-[11px] print:min-w-0">
                 <thead>
                     <tr className="bg-slate-100 text-left text-[10px] font-bold uppercase tracking-wide text-slate-700">
                         <th className="border-b border-slate-300 px-2 py-1.5">Seq</th>
@@ -116,7 +116,7 @@ function TaskTable({ rows, includeHousekeeperColumn = false }) {
 
 function SignatureBlock() {
     return (
-        <div className="mt-6 grid grid-cols-3 gap-6 text-[11px]">
+        <div className="mt-6 grid grid-cols-1 gap-6 text-[11px] sm:grid-cols-3">
             <div>
                 <div className="border-b border-slate-900 pb-6"></div>
                 <div className="mt-1 font-bold text-slate-700">Housekeeper Signature</div>
@@ -141,19 +141,19 @@ export default function HousekeepingPublishSheet({ cover, sheets = [], masterRos
             <Head title={`Publish Sheets — ${cover.workloadDate}`} />
 
             {/* Toolbar — hidden on print */}
-            <div className="sticky top-0 z-50 border-b border-slate-200 bg-white px-6 py-3 shadow-sm print:hidden">
-                <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3">
-                    <div>
+            <div className="sticky top-0 z-50 border-b border-slate-200 bg-white px-4 py-3 shadow-sm print:hidden sm:px-6">
+                <div className="mx-auto flex max-w-[1100px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
                         <div className="text-xs font-bold uppercase tracking-wide text-lx-blue">Smart Lodge Command Center</div>
-                        <h1 className="text-lg font-black text-lx-navy">Publish Assignment Sheets — {cover.workloadDateLong}</h1>
+                        <h1 className="text-base font-black text-lx-navy sm:text-lg">Publish Assignment Sheets — {cover.workloadDateLong}</h1>
                         <p className="text-xs text-slate-500">
                             {cover.housekeeperCount} housekeeper{cover.housekeeperCount === 1 ? '' : 's'} · {cover.taskCount} tasks · Generated {cover.generatedAt}
                         </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                         <Link
                             href={route('housekeeping-planning')}
-                            className="rounded-[10px] border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                            className="rounded-[10px] border border-slate-300 bg-white px-3 py-2 text-center text-xs font-bold text-slate-700 hover:bg-slate-50"
                         >
                             ← Back to Planning
                         </Link>
@@ -170,10 +170,10 @@ export default function HousekeepingPublishSheet({ cover, sheets = [], masterRos
 
             <div className="mx-auto max-w-[1100px] bg-slate-100 py-6 print:bg-white print:py-0">
                 {/* ───────── Cover Page ───────── */}
-                <section className="mx-4 mb-6 break-after-page rounded bg-white p-8 shadow print:m-0 print:rounded-none print:p-6 print:shadow-none">
+                <section className="mx-3 mb-6 break-after-page rounded bg-white p-4 shadow sm:mx-4 sm:p-8 print:m-0 print:rounded-none print:p-6 print:shadow-none">
                     <SheetHeader title="Housekeeping Workload Publish Form" subtitle="Daily assignment sheets — printable cover summary" />
 
-                    <div className="mb-4 grid grid-cols-4 gap-3">
+                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <SummaryStat label="Workload Date" value={cover.workloadDate} hint={cover.workloadDateLong} />
                         <SummaryStat label="Shift" value={cover.shift} />
                         <SummaryStat label="Housekeepers" value={cover.housekeeperCount} hint="Assigned today" />
@@ -212,7 +212,7 @@ export default function HousekeepingPublishSheet({ cover, sheets = [], masterRos
                 </section>
 
                 {/* ───────── Master Roster (Page 2 of PDF) ───────── */}
-                <section className="mx-4 mb-6 break-after-page rounded bg-white p-6 shadow print:m-0 print:rounded-none print:p-6 print:shadow-none">
+                <section className="mx-3 mb-6 break-after-page rounded bg-white p-4 shadow sm:mx-4 sm:p-6 print:m-0 print:rounded-none print:p-6 print:shadow-none">
                     <SheetHeader
                         title="System Published Housekeeping Workload"
                         subtitle={`Master roster — ${cover.workloadDate} · ${cover.shift} · ${masterRoster.length} tasks`}
@@ -224,13 +224,13 @@ export default function HousekeepingPublishSheet({ cover, sheets = [], masterRos
                 {sheets.map((sheet, idx) => (
                     <section
                         key={sheet.housekeeperId ?? `hk-${idx}`}
-                        className={`mx-4 mb-6 rounded bg-white p-6 shadow print:m-0 print:rounded-none print:p-6 print:shadow-none ${
+                        className={`mx-3 mb-6 rounded bg-white p-4 shadow sm:mx-4 sm:p-6 print:m-0 print:rounded-none print:p-6 print:shadow-none ${
                             idx < sheets.length - 1 ? 'break-after-page' : ''
                         }`}
                     >
                         <SheetHeader title="Housekeeping Daily Workload Sheet" subtitle={`${sheet.housekeeper} · ${cover.workloadDate}`} />
 
-                        <div className="mb-4 grid grid-cols-4 gap-3">
+                        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             <SummaryStat label="Housekeeper" value={sheet.housekeeper} hint={sheet.shift} />
                             <SummaryStat label="Date" value={cover.workloadDate} hint={cover.workloadDateLong} />
                             <SummaryStat label="Primary Dorm" value={sheet.primaryDorm} hint={`Assigned: ${sheet.assignedDorms}`} />
@@ -256,7 +256,7 @@ export default function HousekeepingPublishSheet({ cover, sheets = [], masterRos
                 ))}
 
                 {sheets.length === 0 && (
-                    <section className="mx-4 mb-6 rounded bg-white p-8 text-center shadow print:m-0 print:rounded-none print:shadow-none">
+                    <section className="mx-3 mb-6 rounded bg-white p-6 text-center shadow sm:mx-4 sm:p-8 print:m-0 print:rounded-none print:shadow-none">
                         <div className="text-sm font-bold text-slate-700">No assignments published for {cover.workloadDate}.</div>
                         <div className="mt-1 text-xs text-slate-500">
                             Click "Publish Assignments" on the planning board first, then return here.
