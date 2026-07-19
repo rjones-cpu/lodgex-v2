@@ -168,8 +168,8 @@ export default function AppSidebar({ activeHref = null, forceVisible = false }) 
                 forceVisible ? '' : 'max-[1100px]:hidden'
             }`}
         >
-            <div className="mb-6 flex h-7 shrink-0 items-center">
-                <LodgexLogo />
+            <div className=" flex h-16 shrink-0 items-center justify-center">
+                <LodgexLogo size="2xl" className="max-w-[180px]" />
             </div>
             <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
                 {APP_NAV_ITEMS.map((item) => (
