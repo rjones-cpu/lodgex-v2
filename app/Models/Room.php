@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\RoomStatus;
 use App\Models\Builders\RoomBuilder;
+use App\Models\Concerns\BelongsToUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,12 +13,15 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Room extends Model
 {
+    use BelongsToUser;
+
     /** Legacy DB keeps lodgex room rows in `rooms_old`; `rooms` is an unrelated camp schema. */
     protected $table = 'rooms_old';
 
     protected $fillable = [
+        'user_id',
         'number',
-        'name',
+        'dorm',
         'room_inventory_location_id',
         'room_type',
         'status',
@@ -100,15 +104,5 @@ class Room extends Model
     public function newEloquentBuilder($query): RoomBuilder
     {
         return new RoomBuilder($query);
-    }
-
-    public function getDormAttribute(): ?string
-    {
-        return $this->attributes['name'] ?? null;
-    }
-
-    public function setDormAttribute(?string $value): void
-    {
-        $this->attributes['name'] = $value;
     }
 }
