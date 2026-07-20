@@ -70,46 +70,179 @@ class DashboardController extends Controller
     }
 
     /**
-     * Live counts for the operations metric cards so they stay in sync with the
-     * reservation queue below them. Keyed by the metric label used on the
-     * Dashboard so the front-end can merge them over its static defaults.
+     * Live counts + vs-yesterday deltas for the operations metric cards.
+     * Keys match the Dashboard METRICS labels exactly.
      *
-     * @return array<string, int>
+     * @return array<string, array{value: int|string, change: string, direction: 'up'|'down'}>
      */
     private function buildMetricValues(): array
     {
         $today = Carbon::today();
+        $yesterday = Carbon::yesterday();
 
         $reservations = Reservation::query()->get([
             'room_id', 'status', 'approval_status', 'arrival_date', 'departure_date',
         ]);
 
-        $arrivesToday = fn (Reservation $r) => $r->arrival_date && $r->arrival_date->isSameDay($today);
-        $departsToday = fn (Reservation $r) => $r->departure_date && $r->departure_date->isSameDay($today);
+        $onDay = fn ($date) => fn (Reservation $r) => $r->arrival_date && $r->arrival_date->isSameDay($date);
+        $departsOn = fn ($date) => fn (Reservation $r) => $r->departure_date && $r->departure_date->isSameDay($date);
+        $spans = fn ($date) => fn (Reservation $r) => $r->arrival_date && $r->departure_date
+            && $r->arrival_date->lte($date)
+            && $r->departure_date->gte($date);
 
-        $pendingApprovals = $reservations
-            ->filter(fn (Reservation $r) => ! in_array($r->approval_status, ['Approved', '—', null], true))
+        $isPendingApproval = fn (Reservation $r) => ! in_array($r->approval_status, ['Approved', '—', null], true)
+            || $r->status === 'Pending';
+
+        $needsRoom = fn (Reservation $r) => $r->room_id === null
+            && ! in_array($r->status, ['No-Show', 'Check-Out', 'No-Sleep'], true);
+
+        // Point-in-time (current inventory) — compare against same definition
+        // evaluated as if "today" were yesterday (arrival/span relative to that day).
+        $pendingToday = $reservations->filter($isPendingApproval)->count();
+        $pendingYesterday = $reservations
+            ->filter($isPendingApproval)
+            ->filter($onDay($yesterday))
             ->count();
 
-        $roomsToAllocate = $reservations
-            ->filter(fn (Reservation $r) => $r->room_id === null && $r->status !== 'No-Show')
+        $allocateToday = $reservations->filter($needsRoom)->count();
+        $allocateYesterday = $reservations
+            ->filter($needsRoom)
+            ->filter($onDay($yesterday))
             ->count();
 
-        $allottedTonight = $reservations
-            ->filter(fn (Reservation $r) => $r->room_id !== null
-                && $r->arrival_date && $r->arrival_date->lte($today)
-                && $r->departure_date && $r->departure_date->gte($today))
+        $allottedToday = $reservations
+            ->filter(fn (Reservation $r) => $r->room_id !== null)
+            ->filter($spans($today))
             ->count();
+        $allottedYesterday = $reservations
+            ->filter(fn (Reservation $r) => $r->room_id !== null)
+            ->filter($spans($yesterday))
+            ->count();
+
+        $expectedInToday = $reservations->filter($onDay($today))->count();
+        $checkedInToday = $reservations
+            ->filter($onDay($today))
+            ->where('status', 'Check-In')
+            ->count();
+        $expectedInYesterday = $reservations->filter($onDay($yesterday))->count();
+
+        $expectedOutToday = $reservations->filter($departsOn($today))->count();
+        $checkedOutToday = $reservations
+            ->filter($departsOn($today))
+            ->where('status', 'Check-Out')
+            ->count();
+        $expectedOutYesterday = $reservations->filter($departsOn($yesterday))->count();
+
+        $extensionsToday = $reservations->where('status', 'Extension')->count();
+        $extensionsYesterday = $reservations
+            ->where('status', 'Extension')
+            ->filter($spans($yesterday))
+            ->count();
+
+        $walkInsToday = $reservations
+            ->where('status', 'Walk-In')
+            ->filter($onDay($today))
+            ->count();
+        $walkInsYesterday = $reservations
+            ->where('status', 'Walk-In')
+            ->filter($onDay($yesterday))
+            ->count();
+
+        $noShowsToday = $reservations
+            ->where('status', 'No-Show')
+            ->filter($onDay($today))
+            ->count();
+        $noShowsTotal = $reservations->where('status', 'No-Show')->count();
+        $noShowsYesterday = $reservations
+            ->where('status', 'No-Show')
+            ->filter($onDay($yesterday))
+            ->count();
+
+        // Prefer today's no-show count for the headline when any exist today;
+        // otherwise show the open no-show total (matches queue visibility).
+        $noShowsValue = $noShowsToday > 0 ? $noShowsToday : $noShowsTotal;
+        $noShowsCompareFrom = $noShowsToday > 0 ? $noShowsToday : $noShowsTotal;
+        $noShowsCompareTo = $noShowsYesterday;
 
         return [
-            'Pending Approvals' => $pendingApprovals,
-            'Rooms to Allocate' => $roomsToAllocate,
-            'Rooms Allotted Tonight' => $allottedTonight,
-            'Today’s Check-Ins' => $reservations->filter($arrivesToday)->count(),
-            'Today’s Check-Outs' => $reservations->filter($departsToday)->count(),
-            'Active Extensions' => $reservations->where('status', 'Extension')->count(),
-            'Walk-Ins Today' => $reservations->where('status', 'Walk-In')->filter($arrivesToday)->count(),
-            'No-Shows Today' => $reservations->where('status', 'No-Show')->count(),
+            'Pending Approvals' => $this->metricPayload(
+                $pendingToday,
+                $pendingYesterday,
+                higherIsBetter: false,
+            ),
+            'Rooms to Allocate' => $this->metricPayload(
+                $allocateToday,
+                $allocateYesterday,
+                higherIsBetter: false,
+            ),
+            'Rooms Allotted Tonight' => $this->metricPayload(
+                $allottedToday,
+                $allottedYesterday,
+                higherIsBetter: true,
+            ),
+            'Check-Ins' => $this->metricPayload(
+                "{$checkedInToday} / {$expectedInToday}",
+                $expectedInYesterday,
+                higherIsBetter: true,
+                compareToday: $expectedInToday,
+            ),
+            'Check-Outs' => $this->metricPayload(
+                "{$checkedOutToday} / {$expectedOutToday}",
+                $expectedOutYesterday,
+                higherIsBetter: true,
+                compareToday: $expectedOutToday,
+            ),
+            'Active Extensions' => $this->metricPayload(
+                $extensionsToday,
+                $extensionsYesterday,
+                higherIsBetter: false,
+            ),
+            'Walk-Ins' => $this->metricPayload(
+                $walkInsToday,
+                $walkInsYesterday,
+                higherIsBetter: true,
+            ),
+            'No-Shows' => $this->metricPayload(
+                $noShowsValue,
+                $noShowsCompareTo,
+                higherIsBetter: false,
+                compareToday: $noShowsCompareFrom,
+            ),
+        ];
+    }
+
+    /**
+     * @return array{value: int|string, change: string, direction: 'up'|'down'}
+     */
+    private function metricPayload(
+        int|string $value,
+        int|float $yesterday,
+        bool $higherIsBetter,
+        int|float|null $compareToday = null,
+    ): array {
+        $todayNum = $compareToday ?? (is_numeric($value) ? (float) $value : 0.0);
+        $yesterdayNum = (float) $yesterday;
+
+        if ($yesterdayNum == 0.0) {
+            $change = $todayNum == 0.0 ? '—' : '↑ 100%';
+            $rose = $todayNum > 0;
+        } else {
+            $pct = (($todayNum - $yesterdayNum) / $yesterdayNum) * 100;
+            $rose = $pct >= 0;
+            $arrow = $rose ? '↑' : '↓';
+            $change = sprintf('%s %.1f%%', $arrow, abs($pct));
+        }
+
+        // `direction` drives green/red: green when the move is favorable.
+        $favorable = $higherIsBetter ? $rose : ! $rose;
+        if ($change === '—') {
+            $favorable = true;
+        }
+
+        return [
+            'value' => $value,
+            'change' => $change,
+            'direction' => $favorable ? 'up' : 'down',
         ];
     }
 

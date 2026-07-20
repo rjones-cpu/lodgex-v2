@@ -897,6 +897,7 @@ export default function Dashboard({
     campDashboardUrl = null,
     assignableRooms = [],
     metricValues = {},
+    lastUpdated = '',
     lodgePolicy = null,
     onHoldPolicy = { onHoldEnabled: true, maxHoldDays: 7 },
 }) {
@@ -1733,15 +1734,9 @@ export default function Dashboard({
         };
     }, [selectedOtherOpen]);
 
-    // Live metric counts — each widget mirrors the filter used by its
-    // corresponding queue tab so the headline numbers stay in lockstep with
-    // what the manager actually sees in the queue. The vs-yesterday change /
-    // direction strings still come from METRICS since they require historical
-    // data we don't compute locally.
+    // Live metric counts from the queue, merged with server-computed
+    // vs-yesterday change strings from `metricValues`.
     const metrics = useMemo(() => {
-        // Today's display label, formatted to match the seed/backend `arrival`
-        // string ("Jun 13, 2026"). Computed inside the memo so it stays in
-        // sync with the rest of the metric pass.
         const todayLabel = new Date().toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -1756,25 +1751,65 @@ export default function Dashboard({
             (r) => r.departure === todayLabel && r.status === 'Check-Out',
         ).length;
 
-        const counts = {
-            'Pending Approvals': reservations.filter((r) => r.status === 'Pending').length,
-            'Rooms to Allocate': reservations.filter(
-                (r) => r.status === 'Arrival' && (r.room === 'Unassigned' || !r.roomId),
+        const liveCounts = {
+            'Pending Approvals': reservations.filter(
+                (r) => r.status === 'Pending' || (r.approval && r.approval !== 'Approved' && r.approval !== '—'),
             ).length,
-            'Rooms Allotted Tonight': reservations.filter((r) => r.allotment === 'Allotted').length,
-            // Split format: "<already checked in today> / <total expected today>".
-            // String passes through formatMetricValue unchanged.
+            'Rooms to Allocate': reservations.filter(
+                (r) =>
+                    (r.room === 'Unassigned' || !r.roomId) &&
+                    !['No-Show', 'Check-Out', 'No-Sleep'].includes(r.status),
+            ).length,
+            'Rooms Allotted Tonight': reservations.filter((r) => {
+                const hasRoom = Boolean(r.roomId) || (r.room && r.room !== 'Unassigned');
+                if (!hasRoom) return false;
+                if (!r.arrival || !r.departure) return r.allotment === 'Allotted';
+                const arrival = Date.parse(r.arrival);
+                const departure = Date.parse(r.departure);
+                if (Number.isNaN(arrival) || Number.isNaN(departure)) return r.allotment === 'Allotted';
+                const start = new Date();
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(start);
+                end.setHours(23, 59, 59, 999);
+                return arrival <= end.getTime() && departure >= start.getTime();
+            }).length,
             'Check-Ins': `${checkedInToday} / ${expectedInToday}`,
             'Check-Outs': `${checkedOutToday} / ${expectedOutToday}`,
             'Active Extensions': reservations.filter((r) => r.status === 'Extension').length,
-            'Walk-Ins': reservations.filter((r) => r.status === 'Walk-In').length,
-            'No-Shows': reservations.filter((r) => r.status === 'No-Show').length,
+            'Walk-Ins': reservations.filter(
+                (r) => r.status === 'Walk-In' && r.arrival === todayLabel,
+            ).length,
+            'No-Shows': (() => {
+                const todayNoShows = reservations.filter(
+                    (r) => r.status === 'No-Show' && r.arrival === todayLabel,
+                ).length;
+                if (todayNoShows > 0) return todayNoShows;
+                return reservations.filter((r) => r.status === 'No-Show').length;
+            })(),
         };
-        return METRICS.map((m) => ({
-            ...m,
-            value: counts[m.label] != null ? formatMetricValue(counts[m.label]) : m.value,
-        }));
-    }, [reservations]);
+
+        return METRICS.map((m) => {
+            const server = metricValues?.[m.label];
+            const serverValue = server && typeof server === 'object' ? server.value : server;
+            const live = liveCounts[m.label];
+            const value = live != null ? live : serverValue != null ? serverValue : m.value;
+            const change =
+                server && typeof server === 'object' && server.change != null
+                    ? server.change
+                    : m.change;
+            const direction =
+                server && typeof server === 'object' && server.direction != null
+                    ? server.direction
+                    : m.direction;
+
+            return {
+                ...m,
+                value: formatMetricValue(value),
+                change,
+                direction,
+            };
+        });
+    }, [reservations, metricValues]);
 
     const queueTitle =
         activeTab === 'All'
@@ -1798,7 +1833,7 @@ export default function Dashboard({
                         </div>
                         <div className="flex shrink-0 items-center gap-4 whitespace-nowrap">
                             <span className="whitespace-nowrap text-xs font-extrabold text-slate-500 max-[1280px]:hidden">
-                                Last updated: May 20, 2025 09:30 AM
+                                Last updated: {lastUpdated || '—'}
                             </span>
                             <input
                                 value={search}

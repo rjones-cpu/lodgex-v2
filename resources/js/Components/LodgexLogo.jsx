@@ -6,13 +6,14 @@ const HEIGHTS = {
     lg: 'h-11',
     xl: 'h-14',
     '2xl': 'h-16',
+    '5rem': 'h-[5rem]',
 };
 
 export default function LodgexLogo({ className = '', size = 'md', href = 'command-center' }) {
     const heightClass = HEIGHTS[size] || HEIGHTS.md;
     const image = (
         <img
-            src="/images/lodgex-logo.png"
+            src="/images/Lodgex.svg"
             alt="LODGEX"
             className={`${heightClass} w-auto max-w-full object-contain ${className}`}
         />

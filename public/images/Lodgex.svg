@@ -1,0 +1,519 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 399.83">
+  
+  
+                      <style>
+ 
+ #c6{animation: i6b 6s  linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes i6b {
+  0%{transform:scale(0)}
+   0%{transform:translate(0px,0px)}
+  2%{transform:scale(1)}
+  13%{transform:translate(0px,0px)}
+  18%{transform:translate(31.5px,-118px)}
+  29.9%{opacity:1}
+ 50%{opacity:0}
+
+  100%{transform:translate(31.5px,-118px)}
+  
+  
+}
+  #c5{animation: i5b 6s  linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes i5b {
+  0%{transform:scale(0)}
+  2%{transform:scale(0)}
+  4%{transform:scale(1)}
+  13%{transform:translate(0px,0px)}
+  18%{transform:translate(26px,-102px)}
+  29.9%{opacity:1}
+ 50%{opacity:0}
+  100%{transform:translate(26px,-102px)}
+   
+}
+
+#c4{animation: i4b 6s  linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes i4b {
+  0%{transform:scale(0)}
+  3%{transform:scale(0)}
+  6%{transform:scale(1)}
+  13%{transform:translate(0px,0px)}
+  18%{transform:translate(-20px,-72.5px)}
+  29.9%{opacity:1}
+ 50%{opacity:0}
+  100%{transform:translate(-20px,-72.5px)} 
+   
+}
+#c3{animation: i3b 6s  linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes i3b {
+  0%{transform:scale(0)}
+  5%{transform:scale(0)}
+  8%{transform:scale(1)}
+ 13%{transform:translate(0px,0px)}
+  18%{transform:translate(-65px,2px)}
+  29.9%{opacity:1}
+ 50%{opacity:0}
+  100%{transform:translate(-65px,2px)}  
+}
+#c2{animation: i2b 6s  linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes i2b {
+  0%{transform:scale(0)}
+  7%{transform:scale(0)}
+  10%{transform:scale(1)}
+  13%{transform:translate(0px,0px)}
+  18%{transform:translate(-73px,98.5px)}
+  29.9%{opacity:1}
+ 50%{opacity:0}
+  100%{transform:translate(-73px,98.5px)}  
+}
+#c1{animation: i1b 6s  linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes i1b {
+  0%{transform:scale(0)}
+  0%{opacity:1}
+  9%{transform:scale(0)}
+  12%{transform:scale(1)}
+  13%{transform:translate(0px,0px)}
+  18%{transform:translate(-45px,174.5px)}
+  29.9%{opacity:1}
+ 50%{opacity:0}
+
+  100%{transform:translate(-45px,174.5px)} 
+}
+
+#circles{animation: i8 6s  linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes i8 {
+  0%{transform:rotateZ(-250deg)}
+  
+  12%{transform:rotateZ(0deg)}
+  
+}
+#l1 {
+    
+        animation-name: l1;
+        animation-duration: 6s;
+        
+        animation-iteration-count: infinite;
+        animation-timing-function:cubic-bezier(0.65, 0, 0.35, 1);
+        
+        stroke-dashoffset: 500;
+        stroke-dasharray: 500;
+      
+    }
+    @keyframes l1 {
+        0%   { stroke-dashoffset: 499; }
+        0%{opacity:0}
+         15%   { stroke-dashoffset: 499; }
+         17.9%{opacity:0}
+         18%{opacity:1}
+          30%   { stroke-dashoffset: 400; }
+          
+        
+       50% { stroke-dashoffset: 499; }
+        
+}
+
+#l2 {
+    
+        animation-name: l2;
+        animation-duration: 6s;
+        
+        animation-iteration-count: infinite;
+        animation-timing-function:cubic-bezier(0.65, 0, 0.35, 1);
+        
+        stroke-dashoffset: 500;
+        stroke-dasharray: 500;
+      
+    }
+    @keyframes l2 {
+        0%   { stroke-dashoffset: 499; }
+         0%{opacity:0}
+         15%   { stroke-dashoffset: 499; }
+         17.9%{opacity:0}
+         18%{opacity:1}
+          30%   { stroke-dashoffset: 450; }
+       
+       50% { stroke-dashoffset: 499; }
+        
+}
+#l3 {
+    
+        animation-name: l3;
+        animation-duration: 6s;
+        
+        animation-iteration-count: infinite;
+        animation-timing-function:cubic-bezier(0.65, 0, 0.35, 1);
+        
+        stroke-dashoffset: 500;
+        stroke-dasharray: 500;
+      
+    }
+    @keyframes l3 {
+        0%   { stroke-dashoffset: 499; }
+         0%{opacity:0}
+         15%   { stroke-dashoffset: 499; }
+         17.9%{opacity:0}
+         18%{opacity:1}
+          30%   { stroke-dashoffset: 480; }
+       
+        
+       50% { stroke-dashoffset: 499; }
+        
+}
+#l4 {
+    
+        animation-name: l4;
+        animation-duration: 6s;
+        
+        animation-iteration-count: infinite;
+        animation-timing-function:cubic-bezier(0.65, 0, 0.35, 1);
+        
+        stroke-dashoffset: 500;
+        stroke-dasharray: 500;
+      
+    }
+    @keyframes l4 {
+        0%   { stroke-dashoffset: 499; }
+        0%{opacity:0}
+         15%   { stroke-dashoffset: 499; }
+         17.9%{opacity:0}
+         18%{opacity:1}
+          30%   { stroke-dashoffset: 480; }
+       
+        
+       50% { stroke-dashoffset: 499; }
+        
+}
+#l5 {
+    
+        animation-name: l5;
+        animation-duration: 6s;
+        
+        animation-iteration-count: infinite;
+        animation-timing-function:cubic-bezier(0.65, 0, 0.35, 1);
+        
+        stroke-dashoffset: 500;
+        stroke-dasharray: 500;
+      
+    }
+    @keyframes l5 {
+        0%   { stroke-dashoffset: 499; }
+        0%{opacity:0}
+         15%   { stroke-dashoffset: 499; }
+         17.9%{opacity:0}
+         18%{opacity:1}
+          30%   { stroke-dashoffset: 450; }
+       
+        
+       50% { stroke-dashoffset: 499; }
+        
+}
+
+#main{animation: mn 6s  linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes mn {
+  0%{transform:rotateZ(0deg)}
+  
+ 50%{transform:rotateZ(81.5deg)}
+ 50%{opacity:1}
+ 50.1%{opacity:0}
+
+100%{opacity:0}
+100%{transform:rotateZ(81.5deg)}
+  
+}
+
+#l6 {
+    
+        animation-name: l6;
+        animation-duration: 6s;
+        
+        animation-iteration-count: infinite;
+        animation-timing-function:cubic-bezier(0.65, 0, 0.35, 1);
+        
+        stroke-dashoffset: 500;
+        stroke-dasharray: 500;
+      
+    }
+    @keyframes l6 {
+        0%   { stroke-dashoffset: 499; }
+        0%{opacity:0}
+         15%   { stroke-dashoffset: 499; }
+         17.9%{opacity:0}
+         18%{opacity:1}
+         
+          30%   { stroke-dashoffset: 400; }
+       
+        
+       50% { stroke-dashoffset: 499; }
+        
+        
+}
+#lines2{animation: lines2 6s  ease-in-out infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes lines2 {
+  0%{opacity:0} 
+  49.9%{opacity:0} 
+  50%{opacity:1} 
+}
+
+#ll1{animation: i14a 6s  cubic-bezier(0.87, 0, 0.13, 1) infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes i14a {
+  0%{transform:translateY(0)}
+  50%{transform:translateY(0px)}
+  60%{transform:translateY(-160px)}
+  68%{opacity:1}
+ 68.1%{opacity:0}
+
+  
+  75%{transform:translateY(-00px)} 
+  100%{opacity:0} 
+}
+#ll2{animation: ll2 6s .2s  cubic-bezier(0.87, 0, 0.13, 1) infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes ll2 {
+  0%{transform:translateY(0)}
+  50%{transform:translateY(0px)}
+  60%{transform:translateY(-160px)}
+  68%{opacity:1}
+ 68.1%{opacity:0}
+
+  
+  75%{transform:translateY(-00px)} 
+  100%{opacity:0} 
+}
+#ll3{animation: ll3 6s .4s  cubic-bezier(0.87, 0, 0.13, 1) infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes ll3 {
+  0%{transform:translateY(0)}
+  50%{transform:translateY(0px)}
+  60%{transform:translateY(-160px)}
+  68%{opacity:1}
+ 68.1%{opacity:0}
+
+  
+  75%{transform:translateY(-00px)} 
+  100%{opacity:0}   
+}
+#ll4{animation: ll4 6s .6s  cubic-bezier(0.87, 0, 0.13, 1) infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes ll4 {
+  0%{transform:translateY(0)}
+  50%{transform:translateY(0px)}
+  60%{transform:translateY(-160px)}
+  
+  68%{opacity:1}
+ 68.1%{opacity:0}  
+  75%{transform:translateY(-00px)} 
+  100%{opacity:0}   
+}
+#ll5{animation: ll5 6s .8s  cubic-bezier(0.87, 0, 0.13, 1) infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes ll5 {
+  0%{transform:translateY(0)}
+  50%{transform:translateY(0px)}
+  60%{transform:translateY(-160px)}
+  
+  68%{opacity:1}
+ 68.1%{opacity:0}  
+  75%{transform:translateY(-00px)} 
+  100%{opacity:0}     
+}
+#ll6{animation: ll6 6s 1s  cubic-bezier(0.87, 0, 0.13, 1) infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes ll6 {
+  0%{transform:translateY(0)}
+  50%{transform:translateY(0px)}
+  60%{transform:translateY(-160px)}
+  
+  68%{opacity:1}
+ 68.1%{opacity:0}  
+  75%{transform:translateY(-00px)} 
+  100%{opacity:0}     
+}
+
+#l{animation: ll 6s linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes ll {
+  0%{transform:scale(0)}
+  
+  68%{transform:scale(0)}
+  70%{transform:scale(1.1)}
+  71%{transform:scale(1)}   
+}
+#o{animation: oo 6s linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes oo {
+  0%{transform:scale(0)}
+  
+  71%{transform:scale(0)}
+  73%{transform:scale(1.1)}
+  74%{transform:scale(1)}   
+}
+#d{animation: dd 6s linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes dd {
+  0%{transform:scale(0)}
+  
+  74%{transform:scale(0)}
+  76%{transform:scale(1.1)}
+  77%{transform:scale(1)}   
+}
+#g{animation: gg 6s linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes gg {
+  0%{transform:scale(0)}
+  
+  77%{transform:scale(0)}
+  79%{transform:scale(1.1)}
+  80%{transform:scale(1)}   
+}
+#e{animation: ee 6s linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes ee {
+  0%{transform:scale(0)}
+  
+  80%{transform:scale(0)}
+  82%{transform:scale(1.1)}
+  83%{transform:scale(1)}   
+}
+#x{animation: xx 6s linear infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes xx {
+  0%{transform:scale(0)}
+  
+  83%{transform:scale(0)}
+  85%{transform:scale(1.1)}
+  86%{transform:scale(1)}   
+}
+#arrow{animation: ar 6s  cubic-bezier(0.87, 0, 0.13, 1) infinite;
+transform-origin:50% 50%;
+transform-box:fill-box;}
+@keyframes ar {
+  0%{transform:translateX(-20px)}
+  0%{opacity:0}
+  81%{transform:translateX(-20px)}
+  80%{opacity:0}
+ 
+  88%{transform:translateX(0px)}
+  90%{opacity:1}
+  
+  
+  
+}
+ </style>
+  
+  
+  <g id="main">
+    <g id="lines">
+      <g id="l1">
+        <path d="M204.49,358.77c8.03.93,16.28,2.02,24.72,3.27,8.86,1.31,17.46,2.74,25.78,4.26" style="fill: none; stroke: #2e67b2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+      </g>
+      <g id="l2">
+        <path d="M212.59,304.43c7.68,1.42,15.61,2.76,23.77,4,9.16,1.38,18.08,2.55,26.74,3.54" style="fill: none; stroke: #2e67b2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+      </g>
+      <g id="l3">
+        <path d="M220.7,250.09c8.38,1.03,16.94,2.19,25.67,3.49,8.48,1.27,16.76,2.62,24.84,4.04" style="fill: none; stroke: #2e67b2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+      </g>
+      <g id="l4">
+        <path d="M228.8,195.74c6.65,1.52,13.73,2.93,21.2,4.14,10.39,1.68,20.19,2.75,29.3,3.4" style="fill: none; stroke: #2e67b2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+      </g>
+      <g id="l5">
+        <path d="M236.9,141.4c7.48,1.5,15.31,2.89,23.46,4.13,9.38,1.43,18.4,2.54,27.05,3.4" style="fill: none; stroke: #2e67b2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+      </g>
+      <g id="l6">
+        <path d="M245.01,87.06c8.14.95,16.5,2.05,25.06,3.33,8.74,1.3,17.22,2.71,25.45,4.2" style="fill: none; stroke: #2e67b2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+      </g>
+    </g>
+    <g id="circles">
+      <g id="c6">
+        <circle cx="213.96" cy="205.23" r="15.2" style="fill: #2e67b2; stroke-width: 0px;"/>
+      </g>
+      <g id="c5">
+        <circle cx="211.49" cy="243.22" r="15.2" style="fill: #2e67b2; stroke-width: 0px;"/>
+      </g>
+      <g id="c4">
+        <circle cx="249.43" cy="268.47" r="15.2" style="fill: #2e67b2; stroke-width: 0px;"/>
+      </g>
+      <g id="c3">
+        <circle cx="286.15" cy="247.78" r="15.2" style="fill: #2e67b2; stroke-width: 0px;"/>
+      </g>
+      <g id="c2">
+        <circle cx="286.15" cy="205.77" r="15.2" style="fill: #2e67b2; stroke-width: 0px;"/>
+      </g>
+      <g id="c1">
+        <circle cx="250" cy="184.68" r="15.2" style="fill: #2e67b2; stroke-width: 0px;"/>
+      </g>
+      <circle cx="250" cy="226.57" r="61.04" style="fill: none; stroke-width: 0px;"/>
+    </g>
+  </g>
+  <g id="lines2">
+    <g id="ll1">
+      <path d="M109.47,198.95c.26,8.08.41,16.4.41,24.94,0,8.96-.14,17.67-.41,26.13" style="fill: none; stroke: #2e67b2; stroke-dasharray: 0 0 0 59; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+    </g>
+    <g id="ll2">
+      <path d="M164.41,198.95c-.27,7.81-.43,15.84-.45,24.1-.02,9.27.14,18.26.45,26.96" style="fill: none; stroke: #2e67b2; stroke-dasharray: 0 0 0 59; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+    </g>
+    <g id="ll3">
+      <path d="M219.36,198.95c.22,8.44.33,17.07.33,25.9,0,8.57-.12,16.96-.33,25.16" style="fill: none; stroke: #2e67b2; stroke-dasharray: 0 0 0 59; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+    </g>
+    <g id="ll4">
+      <path d="M274.3,198.95c-.53,6.8-.87,14.01-.96,21.58-.13,10.52.26,20.38.96,29.48" style="fill: none; stroke: #2e67b2; stroke-dasharray: 0 0 0 59; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+    </g>
+    <g id="ll5">
+      <path d="M329.24,198.95c-.38,7.62-.6,15.57-.63,23.81-.03,9.48.2,18.58.63,27.25" style="fill: none; stroke: #2e67b2; stroke-dasharray: 0 0 0 59; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+    </g>
+    <g id="ll6">
+      <path d="M384.19,198.95c.26,8.19.4,16.62.4,25.27,0,8.83-.14,17.43-.4,25.79" style="fill: none; stroke: #2e67b2; stroke-dasharray: 0 0 0 59; stroke-linecap: round; stroke-linejoin: round; stroke-width: 30px;"/>
+    </g>
+  </g>
+  <g id="l">
+    <polygon points="92.36 133.13 92.36 183.87 128.74 183.87 128.74 174.3 103.28 174.3 103.28 133.13 92.36 133.13" style="fill: #2d67b2; stroke-width: 0px;"/>
+  </g>
+  <g id="o">
+    <text transform="translate(131.27 183.87)" style="fill: #2d67b2; font-family: AvenirLTStd-Black, &apos;Avenir LT Std&apos;; font-size: 71px; font-weight: 800;"><tspan x="0" y="0">O</tspan></text>
+  </g>
+  <g id="d">
+    <text transform="translate(191.01 183.87)" style="fill: #2d67b2; font-family: AvenirLTStd-Black, &apos;Avenir LT Std&apos;; font-size: 71px; font-weight: 800;"><tspan x="0" y="0">D</tspan></text>
+  </g>
+  <g id="g">
+    <path d="M288.13,147.94c2.4-2.78,4.81-5.55,7.21-8.33-1.71-1.5-8.83-7.4-19.47-7.24-12.65.18-20.32,8.77-21.51,10.15-1.51,1.94-5.61,7.74-5.74,16.15-.04,2.85.29,10.9,6.26,17.55,4.46,4.97,9.88,6.73,12.31,7.48.82.25,4.02,1.21,7.99,1.32,10.72.31,19.07-5.77,21.99-8.11,0-7.34-.02-14.67-.02-22.01-7.29,0-14.58.01-21.87.02-.01,3.2-.02,6.4-.03,9.61l10.66.06v7.15c-.9.67-5.78,4.16-12.38,3.06-5.2-.86-8.36-4.05-9.32-5.11-.89-1.15-3.89-5.32-3.7-11.36.2-6.59,4.04-10.8,4.98-11.77,1.03-.8,5.55-4.1,12-3.55,5.93.5,9.66,3.93,10.66,4.91Z" style="fill: #2d67b2; stroke-width: 0px;"/>
+  </g>
+  <g id="e">
+    <polygon points="344.49 143.15 344.49 133.6 306.19 133.6 306.19 183.87 344.49 183.87 344.49 174.04 317.3 174.04 317.3 163.45 344.49 163.45 347.43 158.7 344.36 153.49 317.55 153.49 317.55 143.15 344.49 143.15" style="fill: #2d67b2; stroke-width: 0px;"/>
+  </g>
+  <g id="x">
+    <path d="M352.98,128.15c6.82,10.07,13.63,20.14,20.45,30.2-7.07,10.1-14.14,20.2-21.21,30.31l15.32.26,13.53-20.49,13.4,20.49h15.86l-21.29-30.89,20.55-29.87h-15.32l-13.01,19.66-12.65-19.66h-15.64Z" style="fill: #2d67b2; stroke-width: 0px;"/>
+  </g>
+  <g id="arrow">
+    <path d="M351.45,157.83h15.99l-9.19-12.93h-24.8c4.85.93,9.7,1.85,14.55,2.78l-12.06.29,14.51,2.59c-3.94.13-7.88.26-11.82.38l14.84,2.39-5.03.62,3.02,3.88Z" style="fill: #f37c7e; stroke-width: 0px;"/>
+    <polygon points="343.66 172.26 351.45 157.83 367.44 157.83 358.09 172.26 343.66 172.26" style="fill: #ec2326; stroke-width: 0px;"/>
+  </g>
+</svg>
