@@ -1074,4 +1074,86 @@ const styles = `
   font-weight: 700;
   color: var(--sl-muted);
 }
+
+@media (max-width: 1279px) {
+  .sl-panel-card {
+    padding: 12px;
+  }
+
+  .sl-panel-header {
+    font-size: 20px;
+    padding-bottom: 10px;
+  }
+
+  .sl-section-header {
+    font-size: 16px;
+  }
+
+  .sl-ai-card {
+    min-height: 0;
+  }
+
+  .sl-ai-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .sl-room-title,
+  .sl-ai-card p {
+    padding-right: 72px;
+  }
+
+  .sl-action-button .sl-action-left {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 639px) {
+  .sl-panel-header {
+    font-size: 18px;
+  }
+
+  .sl-reservation-top {
+    gap: 12px;
+  }
+
+  .sl-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+
+  .sl-reservation-top h3 {
+    font-size: 17px;
+  }
+
+  .sl-match-ring {
+    width: 56px;
+    height: 56px;
+    top: 12px;
+    right: 10px;
+  }
+
+  .sl-match-ring::before {
+    inset: 8px;
+  }
+
+  .sl-match-ring strong {
+    font-size: 12px;
+  }
+
+  .sl-room-title,
+  .sl-ai-card p {
+    padding-right: 64px;
+  }
+
+  .sl-ai-button,
+  .sl-manual-button {
+    min-height: 52px;
+  }
+
+  .sl-action-button {
+    min-height: 42px;
+    padding: 8px 10px;
+  }
+}
 `;

@@ -1685,11 +1685,9 @@ export default function Dashboard({
 
     useEffect(() => () => toastTimeoutRef.current && clearTimeout(toastTimeoutRef.current), []);
 
-    // When the Other section is opened (toggled true), smoothly scroll so the
-    // newly revealed action items are fully visible. The Selected Reservations
-    // aside has its own internal scroll (max-h + overflow-y-auto on viewports
-    // ≥1101px) and flips to a static document-flow block below 1100px — we
-    // need to handle both so the items end up on-screen either way.
+    // When the Other section is opened, smoothly scroll so the newly revealed
+    // action items are fully visible. On xl+ the aside scrolls internally
+    // (max-h + overflow-y-auto); below that the panel is in normal page flow.
     useEffect(() => {
         if (otherInitialMountRef.current) {
             otherInitialMountRef.current = false;
@@ -1701,9 +1699,7 @@ export default function Dashboard({
             const el = otherSectionRef.current;
             if (!el) return;
 
-            // 1. Aside-internal scroll (sticky/scrollable layout). Only acts
-            //    if the aside actually has overflow at this moment — otherwise
-            //    we'd scroll a non-scrollable container and produce nothing.
+            // 1. Aside-internal scroll (sticky/scrollable layout on xl+).
             const aside = el.closest('aside');
             if (aside && aside.scrollHeight > aside.clientHeight) {
                 const elBottom = el.getBoundingClientRect().bottom;
@@ -1717,15 +1713,10 @@ export default function Dashboard({
                 }
             }
 
-            // 2. Document-level scroll (responsive static layout, or as a
-            //    fallback for any ancestor that still clips the section).
+            // 2. Document-level scroll (stacked layout below xl).
             el.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
 
-        // Two passes: the first runs after React's commit + first layout, the
-        // second catches any case where the items list was still mounting (the
-        // aside's overflow flag flips this same render so the browser may not
-        // have re-laid out yet on the first frame).
         const t1 = setTimeout(attemptScroll, 60);
         const t2 = setTimeout(attemptScroll, 200);
         return () => {
@@ -2291,11 +2282,7 @@ export default function Dashboard({
                             </div>
 
                             {selected && !selected.isModificationRequest && (
-                            <aside
-                                className={`min-w-0 xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-150px)] ${
-                                    selectedOtherOpen ? 'xl:overflow-y-auto' : 'xl:overflow-y-hidden'
-                                } overflow-x-hidden`}
-                            >
+                            <aside className="min-w-0 overflow-x-hidden xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-150px)] xl:overflow-y-auto">
                                 <ReservationControlPanel
                                     selected={selected}
                                     onAction={runAction}
