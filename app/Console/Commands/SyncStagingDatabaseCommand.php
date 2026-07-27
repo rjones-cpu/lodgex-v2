@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 /**
@@ -30,17 +31,25 @@ class SyncStagingDatabaseCommand extends Command
         $sourceName = (string) $this->option('source');
         $targetName = (string) $this->option('target');
 
+        Log::info('db:sync-staging started', [
+            'source' => $sourceName,
+            'target' => $targetName,
+            'at' => now()->toIso8601String(),
+        ]);
+
         $source = Config::get("database.connections.{$sourceName}");
         $target = Config::get("database.connections.{$targetName}");
 
         if (! $source || ! $target) {
             $this->error("Unknown connection. source='{$sourceName}', target='{$targetName}'.");
+            Log::error('db:sync-staging aborted: unknown connection', compact('sourceName', 'targetName'));
 
             return self::FAILURE;
         }
 
         if (($source['driver'] ?? null) !== 'mysql' || ($target['driver'] ?? null) !== 'mysql') {
             $this->error('Both source and target connections must use the mysql driver.');
+            Log::error('db:sync-staging aborted: non-mysql driver');
 
             return self::FAILURE;
         }
@@ -60,10 +69,19 @@ class SyncStagingDatabaseCommand extends Command
             $this->import($mysqlBin, $targetCnf, $target['database'], $dumpFile);
 
             $this->info('Staging database synced successfully.');
+            Log::info('db:sync-staging finished successfully', [
+                'source_db' => $source['database'],
+                'target_db' => $target['database'],
+            ]);
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
             $this->error('Sync failed: '.$e->getMessage());
+            Log::error('db:sync-staging failed', [
+                'message' => $e->getMessage(),
+                'mysqldump' => $mysqldumpBin,
+                'mysql' => $mysqlBin,
+            ]);
 
             return self::FAILURE;
         } finally {
