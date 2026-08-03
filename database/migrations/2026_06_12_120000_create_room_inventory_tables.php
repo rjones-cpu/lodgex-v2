@@ -7,13 +7,10 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Room Inventory tables — ported from camp-reservations.
  *
- * Differences from the camp-reservations source:
- *   - Drops `camp_id` columns and FKs (lodgex-v2 has no `camps` table).
- *     Inventory is single-tenant; if multi-camp is added later, a
- *     follow-up migration can add `camp_id`.
- *   - All other columns, indexes, types, and defaults match the source
- *     (see camp-reservations: 2026_03_17_120000, 2026_03_17_120001,
- *     2026_04_08_130000, 2026_04_08_140000).
+ * Matches camp-reservations inventory shape, including `camp_id` so LodgeX
+ * and camp-reservations share the same per-camp partition.
+ * (see camp-reservations: 2026_03_17_120000, 2026_03_17_120001,
+ * 2026_04_08_130000, 2026_04_08_140000).
  */
 return new class extends Migration
 {
@@ -21,6 +18,7 @@ return new class extends Migration
     {
         Schema::create('room_inventory_locations', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('camp_id');
             $table->string('name');
             $table->string('location_type', 32); // dorm | floor | wellsite
             $table->unsignedInteger('total_rooms')->default(0);
@@ -30,11 +28,13 @@ return new class extends Migration
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
 
+            $table->index('camp_id');
             $table->index('sort_order');
         });
 
         Schema::create('room_inventory_out_of_service', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('camp_id');
             $table->foreignId('room_inventory_location_id')
                 ->nullable()
                 ->constrained('room_inventory_locations')
@@ -46,6 +46,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
+            $table->index('camp_id');
             $table->index('is_active');
         });
 

@@ -10,6 +10,8 @@ use App\Services\RoomInventory\RoomInventorySyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,7 +22,7 @@ use Inertia\Response;
  *
  * Ported from camp-reservations (RoomInventoryAgentController). Differences:
  *   - Inertia/React render in place of Blade view.
- *   - Single-tenant (no `camp_id` scoping).
+ *   - Scoped by the logged-in user's `camp_id` (same partition as camp-reservations).
  *   - Gated by `auth + verified` middleware in routes (no Spatie role check).
  */
 class RoomInventoryController extends Controller
@@ -36,8 +38,10 @@ class RoomInventoryController extends Controller
         private readonly RoomInventorySyncService $sync,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $this->campId($request);
+
         $locations = RoomInventoryLocation::query()
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -81,10 +85,13 @@ class RoomInventoryController extends Controller
 
     public function storeLocation(Request $request): RedirectResponse
     {
+        $campId = $this->campId($request);
         $data = $this->validateLocation($request);
+        $data['camp_id'] = $campId;
+        $data['user_id'] = $request->user()->id;
         $data['sort_order'] = (int) (RoomInventoryLocation::query()->max('sort_order') + 1);
 
-        $location = RoomInventoryLocation::create($data);
+        $location = RoomInventoryLocation::query()->create($data);
         $this->sync->syncLocation($location);
 
         return redirect()->route('room-inventory')->with('toast', 'Location added.');
@@ -92,6 +99,8 @@ class RoomInventoryController extends Controller
 
     public function updateLocation(Request $request, int $id): RedirectResponse
     {
+        $this->campId($request);
+
         $location = RoomInventoryLocation::query()->findOrFail($id);
         $data = $this->validateLocation($request);
         $location->update($data);
@@ -100,8 +109,10 @@ class RoomInventoryController extends Controller
         return redirect()->route('room-inventory')->with('toast', 'Location updated.');
     }
 
-    public function destroyLocation(int $id): RedirectResponse
+    public function destroyLocation(Request $request, int $id): RedirectResponse
     {
+        $this->campId($request);
+
         $location = RoomInventoryLocation::query()->findOrFail($id);
 
         // Retire the concrete rooms first (occupied rooms are preserved), then
@@ -119,6 +130,8 @@ class RoomInventoryController extends Controller
 
     public function storeOutOfService(Request $request): RedirectResponse
     {
+        $campId = $this->campId($request);
+
         $validated = $request->validate([
             'room_inventory_location_id' => 'required|exists:room_inventory_locations,id',
             'room_identifier' => 'required|string|max:120',
@@ -159,6 +172,7 @@ class RoomInventoryController extends Controller
         $roomCategory = $this->availability->inferCategoryForLocationRoom($location, $roomNumber);
 
         $oos = RoomInventoryOutOfService::create([
+            'camp_id' => $campId,
             'room_inventory_location_id' => $location->id,
             'room_identifier' => $roomIdentifier,
             'room_category' => $roomCategory,
@@ -172,8 +186,10 @@ class RoomInventoryController extends Controller
         return redirect()->route('room-inventory')->with('toast', 'Room marked out of service.');
     }
 
-    public function returnToService(int $id): RedirectResponse
+    public function returnToService(Request $request, int $id): RedirectResponse
     {
+        $this->campId($request);
+
         $row = RoomInventoryOutOfService::query()->findOrFail($id);
         $row->is_active = false;
         $row->save();
@@ -225,8 +241,10 @@ class RoomInventoryController extends Controller
      * JSON for a location: summary plus active out-of-service rows tied to this location.
      * Used by the React page when the OOS form selects a location.
      */
-    public function roomsForLocation(int $id): JsonResponse
+    public function roomsForLocation(Request $request, int $id): JsonResponse
     {
+        $this->campId($request);
+
         $location = RoomInventoryLocation::query()->findOrFail($id);
 
         $outOfService = RoomInventoryOutOfService::query()
@@ -242,6 +260,33 @@ class RoomInventoryController extends Controller
             ]),
             'out_of_service' => $outOfService,
         ]);
+    }
+
+    /**
+     * Resolve the logged-in user's camp. Inventory is partitioned by camp_id
+     * (same as camp-reservations).
+     *
+     * Uses abort() (not ValidationException) so a GET to /room-inventory does
+     * not silently redirect()->back() to the previous page (e.g. room-utilization).
+     */
+    private function campId(Request $request): int
+    {
+        $campId = (int) ($request->user()?->getAttribute('camp_id') ?? 0);
+
+        if ($campId < 1) {
+            abort(403, 'Your account is not assigned to a camp.');
+        }
+
+        // FK: room_inventory_locations.camp_id → camps.id
+        if (Schema::hasTable('camps')
+            && ! DB::table('camps')->where('id', $campId)->exists()) {
+            abort(
+                403,
+                "Camp #{$campId} is missing from the camps table. Update users.camp_id to a valid camp, or import that camp."
+            );
+        }
+
+        return $campId;
     }
 
     private function validateLocation(Request $request): array

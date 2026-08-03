@@ -30,6 +30,19 @@ class RoomInventorySeeder extends Seeder
 
         $sync = app(RoomInventorySyncService::class);
 
+        // Prefer an explicit camp; fall back to the first user that has one.
+        $campId = (int) (
+            env('ROOM_INVENTORY_SEED_CAMP_ID')
+            ?: \App\Models\User::query()->whereNotNull('camp_id')->where('camp_id', '>', 0)->value('camp_id')
+            ?: 0
+        );
+
+        if ($campId < 1) {
+            $this->command?->warn('RoomInventorySeeder skipped: no camp_id available (set ROOM_INVENTORY_SEED_CAMP_ID).');
+
+            return;
+        }
+
         // name, type, total, exec, senior_exec, wellsite (408 rooms total).
         $locations = [
             ['A', 'dorm', 22, 0, 22, 0],
@@ -52,6 +65,7 @@ class RoomInventorySeeder extends Seeder
 
         foreach ($locations as $index => [$name, $type, $total, $exec, $senior, $well]) {
             $location = RoomInventoryLocation::create([
+                'camp_id' => $campId,
                 'name' => $name,
                 'location_type' => $type,
                 'total_rooms' => $total,

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
  * Room Inventory availability — out-of-service rooms are not assignable.
  *
  * Ported from camp-reservations. Differences:
- *   - No `camp_id` scoping (lodgex-v2 is single-tenant).
+ *   - Camp scoping comes from RoomInventoryLocation / OOS BelongsToCamp.
  *   - No portal API / `Dorm` model dependency; we match locations to
  *     lodgex-v2's `rooms.dorm` string column instead.
  */

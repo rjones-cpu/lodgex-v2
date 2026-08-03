@@ -2,18 +2,20 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToUser;
+use App\Models\Concerns\BelongsToCamp;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Ported from camp-reservations (RoomInventoryLocation) — drops camp scoping.
+ * Ported from camp-reservations (RoomInventoryLocation).
+ * Scoped by the logged-in user's `camp_id` (shared inventory per camp).
  */
 class RoomInventoryLocation extends Model
 {
-    use BelongsToUser;
+    use BelongsToCamp;
 
     protected $fillable = [
+        'camp_id',
         'user_id',
         'name',
         'location_type',
@@ -25,6 +27,7 @@ class RoomInventoryLocation extends Model
     ];
 
     protected $casts = [
+        'camp_id' => 'integer',
         'total_rooms' => 'integer',
         'rooms_executive' => 'integer',
         'rooms_senior_executive' => 'integer',
