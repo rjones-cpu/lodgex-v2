@@ -52,7 +52,11 @@ class HousekeepingForecastService
                 $minutes = (int) $tasks->sum('estimated_minutes');
             }
 
-            $required = max(1, (int) ceil($minutes / max(1, $rules->productive_minutes)));
+            $productiveMinutes = max(1, (int) ($rules->productive_minutes ?: 480));
+            $required = max(1, (int) ceil($minutes / $productiveMinutes));
+            // Column is unsignedTinyInteger (0–255).
+            $required = min(255, $required);
+            $activeHousekeepers = min(255, max(0, (int) $activeHousekeepers));
             $shortage = max(0, $required - $activeHousekeepers);
 
             $snapshot = ForecastSnapshot::query()->whereDate('forecast_date', $dateStr)->first();

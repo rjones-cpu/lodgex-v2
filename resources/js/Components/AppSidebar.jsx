@@ -41,6 +41,13 @@ function SidebarIcon({ label, isActive }) {
                 <path d="M14 16.25h5.5M16.75 13.5v5.5" />
             </>
         ),
+        'Discrepancies & Modifications': (
+            <>
+                <path d="M12 4l9 16H3L12 4z" />
+                <path d="M12 10v4" />
+                <path d="M12 17h.01" />
+            </>
+        ),
         'Room Utilization': (
             <>
                 <path d="M4 11V7.5A2.5 2.5 0 0 1 6.5 5h4A2.5 2.5 0 0 1 13 7.5V11" />

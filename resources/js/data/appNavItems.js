@@ -1,6 +1,7 @@
 export const APP_NAV_ITEMS = [
     { label: 'Command Center', icon: '⚙️', href: 'command-center' },
     { label: 'Reservation Operations', icon: '▦', href: 'dashboard' },
+    { label: 'Discrepancies & Modifications', icon: '⚠️', href: 'discrepancies-modifications' },
     { label: 'Room Utilization', icon: '📊', href: 'room-utilization' },
     { label: 'Housekeeping Planning', icon: '🧹', href: 'housekeeping-planning' },
     { label: 'Room Inventory', icon: '🛏️', href: 'room-inventory' },

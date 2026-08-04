@@ -6,6 +6,7 @@ use App\Enums\RoomStatus;
 use App\Models\Reservation;
 use App\Models\Room;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -38,19 +39,87 @@ class RoomAssignmentService
         );
     }
 
+    /**
+     * Assign Room Inventory (Vacant Clean) rooms to unassigned reservations,
+     * depleting the shared pool so two bookings never receive the same room.
+     *
+     * @param  Collection<int, Reservation>  $reservations
+     * @return array{assigned: int, skipped: int, exhausted: bool}
+     */
+    public function bulkAssignFromInventory(Collection $reservations, ?User $user = null): array
+    {
+        $targets = $reservations
+            ->filter(fn (Reservation $r) => $r->room_id === null && $r->worker_id !== null)
+            ->filter(fn (Reservation $r) => ! in_array($r->status, ['No-Show', 'Check-Out', 'No-Sleep'], true))
+            ->sortBy(fn (Reservation $r) => $r->arrival_date?->timestamp ?? PHP_INT_MAX)
+            ->values();
+
+        if ($targets->isEmpty()) {
+            return ['assigned' => 0, 'skipped' => 0, 'exhausted' => false];
+        }
+
+        $pool = $this->aiMatching->inventoryAssignableRooms();
+        $assigned = 0;
+        $skipped = 0;
+        $remaining = $targets->count();
+
+        foreach ($targets as $reservation) {
+            if ($pool->isEmpty()) {
+                $skipped += $remaining;
+
+                return ['assigned' => $assigned, 'skipped' => $skipped, 'exhausted' => true];
+            }
+
+            $remaining--;
+
+            $room = $this->aiMatching->bestRoomFromPool($reservation, $pool);
+            if (! $room) {
+                $skipped++;
+
+                continue;
+            }
+
+            try {
+                $this->assign(
+                    $reservation,
+                    $room,
+                    $user,
+                    method: 'ai',
+                    matchScore: $this->aiMatching->score($reservation, $room),
+                );
+                $assigned++;
+                $pool = $pool->reject(fn (Room $r) => $r->id === $room->id)->values();
+            } catch (\Throwable) {
+                $skipped++;
+                $pool = $pool->reject(fn (Room $r) => $r->id === $room->id)->values();
+            }
+        }
+
+        return [
+            'assigned' => $assigned,
+            'skipped' => $skipped,
+            'exhausted' => $pool->isEmpty() && $skipped > 0,
+        ];
+    }
+
     public function assign(
         Reservation $reservation,
         Room $room,
         ?User $user = null,
         string $method = 'manual',
         ?int $matchScore = null,
-    ): Reservation
-    {
+    ): Reservation {
         $room->loadMissing('activeHold', 'activeMaintenanceHold');
         $reservation->loadMissing('worker', 'room');
 
         if ($reservation->room_id === $room->id) {
             return $reservation;
+        }
+
+        if ($room->room_inventory_location_id === null) {
+            throw ValidationException::withMessages([
+                'room' => 'Only rooms from Room Inventory can be assigned.',
+            ]);
         }
 
         if (! $this->availability->isAvailableForAssignment($room)) {
@@ -72,7 +141,10 @@ class RoomAssignmentService
                 $this->releaseRoom($previousRoom, $reservation);
             }
 
-            $reservation->update(['room_id' => $room->id]);
+            $reservation->update([
+                'room_id' => $room->id,
+                'allotment_status' => 'Allotted',
+            ]);
 
             $room->update([
                 'current_worker_id' => $reservation->worker_id,
@@ -125,6 +197,10 @@ class RoomAssignmentService
     {
         if ($reservation->status === 'Check-In') {
             return RoomStatus::Occupied;
+        }
+
+        if ($reservation->status === 'On-Hold') {
+            return RoomStatus::OnHoldClean;
         }
 
         return RoomStatus::AssignedArrival;

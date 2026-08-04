@@ -144,13 +144,13 @@ export default function HousekeepingPlanningManager({
             <AppLayout activeHref="housekeeping-planning">
                 <AppPageShell>
                     <AppPageHeader className="sticky top-0 z-20 shrink-0 border-b border-lx-border bg-white px-3 py-3 sm:px-[18px] sm:py-[18px] max-[1100px]:sticky min-[1101px]:static min-[1101px]:border-b-0">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
-                            <p className="text-xs font-bold uppercase tracking-wide text-lx-blue">Smart Lodge Command Center</p>
-                            <h1 className="text-xl font-black text-lx-navy sm:text-2xl">Housekeeping Planning & Workload</h1>
-                            <p className="text-xs text-slate-500">Updated {lastUpdated}</p>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-lx-blue sm:text-xs">Smart Lodge Command Center</p>
+                            <h1 className="text-lg font-black leading-tight text-lx-navy sm:text-2xl">Housekeeping Planning & Workload</h1>
+                            <p className="mt-0.5 text-[11px] text-slate-500 sm:text-xs">Updated {lastUpdated}</p>
                         </div>
-                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:flex lg:flex-wrap lg:items-center">
                             <button type="button" onClick={publishAssignments} className="cursor-pointer rounded-[10px] bg-lx-blue px-4 py-2.5 text-sm font-black text-white">
                                 Publish Assignments
                             </button>
@@ -166,21 +166,21 @@ export default function HousekeepingPlanningManager({
                     </div>
                     </AppPageHeader>
 
-                    <AppPageBody className="px-3 pb-3 sm:px-[18px] sm:pb-[18px]">
-                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <AppPageBody className="px-3 pb-4 sm:px-[18px] sm:pb-[18px]">
+                    <div className="mb-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4">
                         {metrics.map((m) => (
-                            <div key={m.label} className="rounded-2xl border border-lx-border bg-white p-4 shadow-lx-soft">
-                                <div className="text-2xl">{m.icon}</div>
-                                <div className="mt-2 text-2xl font-black text-lx-navy">{m.value}</div>
-                                <p className="text-xs font-bold text-slate-500">{m.label}</p>
-                                <p className="text-xs font-extrabold text-lx-ink">{m.change}</p>
+                            <div key={m.label} className="rounded-2xl border border-lx-border bg-white p-3 shadow-lx-soft sm:p-4">
+                                <div className="text-xl sm:text-2xl">{m.icon}</div>
+                                <div className="mt-1.5 text-xl font-black text-lx-navy sm:mt-2 sm:text-2xl">{m.value}</div>
+                                <p className="text-[11px] font-bold text-slate-500 sm:text-xs">{m.label}</p>
+                                <p className="text-[11px] font-extrabold text-lx-ink sm:text-xs">{m.change}</p>
                             </div>
                         ))}
                     </div>
 
-                    <section className="grid grid-cols-1 gap-[18px] min-w-0 xl:grid-cols-[minmax(0,1fr)_300px]">
-                        <div className="min-w-0 rounded-2xl border border-lx-border bg-white shadow-lx-card">
-                            <div className="-mx-px flex gap-2 overflow-x-auto overscroll-x-contain border-b border-lx-border px-3 py-3 [scrollbar-width:thin]">
+                    <section className="grid grid-cols-1 gap-4 min-w-0 xl:grid-cols-[minmax(0,1fr)_300px] xl:gap-[18px]">
+                        <div className="min-w-0 overflow-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card">
+                            <div className="flex gap-2 overflow-x-auto overscroll-x-contain border-b border-lx-border px-2 py-2.5 [scrollbar-width:thin] sm:gap-2 sm:px-3 sm:py-3">
                                 {HK_TABS.map((t) => {
                                     const Icon = HK_TAB_ICONS[t.key] ?? BarChart3;
                                     const isActive = activeTab === t.key;
@@ -190,7 +190,8 @@ export default function HousekeepingPlanningManager({
                                             type="button"
                                             onClick={() => setActiveTab(t.key)}
                                             aria-pressed={isActive}
-                                            className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2.5 text-xs font-bold transition sm:px-4 ${
+                                            title={t.label}
+                                            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-2.5 py-2 text-[11px] font-bold transition sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs ${
                                                 isActive
                                                     ? 'border-lx-blue bg-lx-blue text-white shadow-sm'
                                                     : 'border-lx-border bg-white text-lx-ink hover:border-lx-blue/40 hover:bg-[#f0f6ff]'
@@ -200,7 +201,7 @@ export default function HousekeepingPlanningManager({
                                                 className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-lx-blue'}`}
                                                 strokeWidth={2.4}
                                             />
-                                            <span>{t.label}</span>
+                                            <span className="max-[380px]:sr-only">{t.label}</span>
                                         </button>
                                     );
                                 })}

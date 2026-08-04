@@ -10,8 +10,27 @@ class HousekeepingStandardsService
 {
     public function rules(): HkWorkloadRule
     {
-        return HkWorkloadRule::query()->where('is_active', true)->first()
-            ?? HkWorkloadRule::create(['name' => 'Default']);
+        $rules = HkWorkloadRule::query()->where('is_active', true)->first();
+
+        if ($rules) {
+            return $rules;
+        }
+
+        // Explicit defaults — Eloquent create() does not hydrate MySQL column
+        // defaults onto the in-memory model, so productive_minutes would stay
+        // null and labour math would divide by 1 (max(1, null)).
+        return HkWorkloadRule::create([
+            'name' => 'Default',
+            'max_shift_hours' => 11,
+            'max_rooms_per_day' => 29,
+            'max_checkouts_per_day' => 10,
+            'max_points_per_day' => 36,
+            'productive_minutes' => 480,
+            'safety_meeting_minutes' => 30,
+            'meal_break_minutes' => 30,
+            'prefer_single_dorm' => true,
+            'is_active' => true,
+        ]);
     }
 
     /**

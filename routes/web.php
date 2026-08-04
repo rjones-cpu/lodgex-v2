@@ -66,6 +66,10 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+Route::get('/discrepancies-modifications', [DashboardController::class, 'exceptions'])
+    ->middleware(['auth', 'verified'])
+    ->name('discrepancies-modifications');
+
 Route::post('/dashboard/assign-room', [DashboardController::class, 'assignRoom'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.assign-room');
@@ -73,6 +77,10 @@ Route::post('/dashboard/assign-room', [DashboardController::class, 'assignRoom']
 Route::post('/dashboard/ai-assign-room', [DashboardController::class, 'aiAssignRoom'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.ai-assign-room');
+
+Route::post('/dashboard/assign-inventory-rooms', [DashboardController::class, 'assignInventoryRooms'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.assign-inventory-rooms');
 
 Route::post('/dashboard/approve', [DashboardController::class, 'approve'])
     ->middleware(['auth', 'verified'])

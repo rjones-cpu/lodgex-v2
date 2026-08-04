@@ -135,7 +135,9 @@ const TAB_ICON_PROPS = {
     className: 'h-[22px] w-[22px]',
 };
 
-const TABS = [
+// Reservation Operations queue tabs (Discrepancies / Modifications live in their
+// own sidebar module — see EXCEPTION_TABS).
+const OPERATIONS_TABS = [
     {
         key: 'All',
         label: 'All',
@@ -212,6 +214,9 @@ const TABS = [
             </svg>
         ),
     },
+];
+
+const EXCEPTION_TABS = [
     {
         key: 'Discrepancies',
         label: 'Discrepancies',
@@ -892,6 +897,7 @@ function QueuePaginationBar({
 }
 
 export default function Dashboard({
+    queueMode = 'operations',
     reservations: serverReservations = [],
     modificationRequests: serverModificationRequests = [],
     campDashboardUrl = null,
@@ -901,6 +907,16 @@ export default function Dashboard({
     lodgePolicy = null,
     onHoldPolicy = { onHoldEnabled: true, maxHoldDays: 7 },
 }) {
+    const isExceptionsModule = queueMode === 'exceptions';
+    const TABS = isExceptionsModule ? EXCEPTION_TABS : OPERATIONS_TABS;
+    const pageTitle = isExceptionsModule
+        ? 'Discrepancies & Modifications'
+        : 'Reservation Operations Center';
+    const pageSubtitle = isExceptionsModule
+        ? 'Schedule mismatches and pending modification requests from Reservation Managers.'
+        : 'Unified control for reservation approvals, room movement, arrivals, and exception handling.';
+    const activeHref = isExceptionsModule ? 'discrepancies-modifications' : 'dashboard';
+
     const policy = lodgePolicy ?? {
         onHold: { enabled: onHoldPolicy.onHoldEnabled, maxHoldDays: onHoldPolicy.maxHoldDays },
         noShow: { cutoffTime: '07:00', releaseRequiresApproval: true },
@@ -920,7 +936,7 @@ export default function Dashboard({
     const [modificationRequests, setModificationRequests] = useState(() =>
         (Array.isArray(serverModificationRequests) ? serverModificationRequests : []).map(enrichReservation),
     );
-    const [activeTab, setActiveTab] = useState('All');
+    const [activeTab, setActiveTab] = useState(isExceptionsModule ? 'Discrepancies' : 'All');
     // -1 = no row selected → Control Panel is hidden.
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [statusFilter, setStatusFilter] = useState('All');
@@ -1241,7 +1257,7 @@ export default function Dashboard({
             });
             setNotesModalOpen(true);
             flash(
-                `Reject / Hold for Review: ${target?.worker || 'reservation'} — moved to Modification Requests`,
+                `Reject / Hold for Review: ${target?.worker || 'reservation'} — see Discrepancies & Modifications`,
             );
             return;
         }
@@ -1597,6 +1613,14 @@ export default function Dashboard({
         );
     }
 
+    function submitInventoryRoomAssignment() {
+        setAssignSaving(true);
+        router.post(route('dashboard.assign-inventory-rooms'), {}, {
+            preserveScroll: true,
+            onFinish: () => setAssignSaving(false),
+        });
+    }
+
     function submitRoomAssignment(roomId) {
         const reservation = reservations[selectedIndex];
         if (!reservation?.id || !roomId) return;
@@ -1807,19 +1831,25 @@ export default function Dashboard({
             ? 'Reservation Operations Queue'
             : `${TABS.find((t) => t.key === activeTab)?.label ?? activeTab} Queue`;
 
+    const inventoryAssignTabs = ['Waitlisted', 'Checked-In', 'On-Hold'];
+    const showInventoryAssign = inventoryAssignTabs.includes(activeTab);
+    const unassignedInTab = showInventoryAssign
+        ? filtered.filter((r) => !r.roomId && (!r.room || r.room === 'Unassigned')).length
+        : 0;
+
     return (
         <>
-            <Head title="Reservation Operations Center" />
+            <Head title={pageTitle} />
 
-            <AppLayout activeHref="dashboard">
+            <AppLayout activeHref={activeHref}>
                 <AppPageShell>
                     <AppPageHeader className="sticky top-0 z-20 flex h-[78px] shrink-0 items-center justify-between gap-4 border-b border-lx-border bg-white px-6 max-[1100px]:sticky min-[1101px]:static">
                         <div className="min-w-0 shrink">
                             <h1 className="m-0 truncate text-[26px] tracking-[-0.5px] text-lx-navy">
-                                Reservation Operations Center
+                                {pageTitle}
                             </h1>
                             <p className="mt-0.5 truncate text-[13px] font-semibold text-slate-500 max-[1100px]:hidden">
-                                Unified control for reservation approvals, room movement, arrivals, and exception handling.
+                                {pageSubtitle}
                             </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-4 whitespace-nowrap">
@@ -1859,6 +1889,7 @@ export default function Dashboard({
                             }`}
                         >
                             <div className="min-w-0">
+                                {!isExceptionsModule && (
                                 <section className="mb-[18px] rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-3 shadow-lg shadow-blue-100/50 sm:p-4">
                                     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-8">
                                         {metrics.map((m) => (
@@ -1909,6 +1940,7 @@ export default function Dashboard({
                                         ))}
                                     </div>
                                 </section>
+                                )}
                                 <div className="overflow-hidden rounded-2xl border border-lx-border bg-white shadow-lx-card min-[1101px]:sticky min-[1101px]:top-0 min-[1101px]:z-10">
                                     {/* Queue tabs: size to label content and scroll horizontally so
                                         names never clip. Chevron interlocking only on very wide
@@ -1954,13 +1986,28 @@ export default function Dashboard({
                                         })}
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-2 border-b border-lx-border px-4 py-3 sm:px-[18px] sm:py-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-lx-border px-4 py-3 sm:px-[18px] sm:py-4">
                                         <div className="min-w-0 text-sm font-black text-lx-navy sm:text-base">
                                             {queueTitle}
                                             <span className="ml-1.5 inline-block rounded-full bg-[#eaf2ff] px-2.5 py-1 text-xs font-bold text-lx-blue">
                                                 {filtered.length}
                                             </span>
                                         </div>
+                                        {showInventoryAssign && (
+                                            <button
+                                                type="button"
+                                                disabled={assignSaving || unassignedInTab === 0}
+                                                onClick={submitInventoryRoomAssignment}
+                                                title="Assign Vacant Clean rooms from Room Inventory to every unassigned reservation in Waitlisted, In House, and On-Hold"
+                                                className="rounded-xl bg-lx-blue px-3.5 py-2 text-xs font-black text-white shadow-sm transition hover:bg-[#0057e6] disabled:cursor-not-allowed disabled:bg-slate-300"
+                                            >
+                                                {assignSaving
+                                                    ? 'Assigning…'
+                                                    : unassignedInTab > 0
+                                                      ? `Assign Inventory Rooms (${unassignedInTab})`
+                                                      : 'Inventory Rooms Assigned'}
+                                            </button>
+                                        )}
                                     </div>
 
                                     <QueuePaginationBar

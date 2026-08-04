@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\LodgePolicy;
 use App\Models\Reservation;
 use App\Models\Room;
+use App\Models\RoomInventoryLocation;
+use App\Models\User;
 use App\Support\LodgePolicyPresenter;
 use App\Services\AccommodationWorkforce\CampManagerModificationRequestsService;
 use App\Services\AccommodationWorkforce\CampManagerReservationsService;
@@ -38,11 +40,29 @@ class DashboardController extends Controller
 
     public function index(Request $request): Response
     {
+        return $this->renderDashboard($request, 'operations');
+    }
+
+    /**
+     * Discrepancies & Modifications — sibling module under Reservation Operations.
+     */
+    public function exceptions(Request $request): Response
+    {
+        return $this->renderDashboard($request, 'exceptions');
+    }
+
+    private function renderDashboard(Request $request, string $queueMode): Response
+    {
         // Mirror any Accommodation Workforce additions into the local reservation
         // queue before rendering (cached + fail-soft inside the service).
         $user = $request->user();
         if ($user) {
             $this->workforceSync->syncForUser($user);
+            // Auto-fill Waitlisted / In House / On-Hold from Room Inventory.
+            // Only needed on the operations queue (not the exceptions module).
+            if ($queueMode === 'operations') {
+                $this->assignInventoryRoomsForQueueTabs($user);
+            }
         }
 
         $policy = LodgePolicy::forCurrentUser();
@@ -51,6 +71,7 @@ class DashboardController extends Controller
         $schedulingBase = rtrim((string) config('accommodation_workforce.scheduling_base', ''), '/');
 
         return Inertia::render('Dashboard', [
+            'queueMode' => $queueMode,
             'reservations' => $this->buildReservations(),
             // Camp Manager `/dashboard` pending request_reservations (not reservation statuses).
             'modificationRequests' => $user
@@ -58,7 +79,7 @@ class DashboardController extends Controller
                 : [],
             'campDashboardUrl' => $schedulingBase !== '' ? $schedulingBase.'/dashboard' : null,
             'assignableRooms' => $this->buildAssignableRooms(),
-            'metricValues' => $this->buildMetricValues(),
+            'metricValues' => $queueMode === 'operations' ? $this->buildMetricValues() : [],
             'lastUpdated' => now()->format('M j, Y g:i A'),
             'lodgePolicy' => $lodgePolicy,
             // Backward-compatible alias for on-hold modal wiring.
@@ -300,6 +321,49 @@ class DashboardController extends Controller
         );
     }
 
+    /**
+     * Bulk-assign Room Inventory rooms to every unassigned reservation in the
+     * Waitlisted, In House (Checked-In), and On-Hold queues.
+     */
+    public function assignInventoryRooms(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $result = $this->assignInventoryRoomsForQueueTabs($user);
+
+        if ($result['assigned'] === 0 && $result['skipped'] === 0) {
+            return redirect()->back()->with('toast', 'All Waitlisted / In House / On-Hold reservations already have rooms.');
+        }
+
+        $message = "Assigned {$result['assigned']} inventory room(s)";
+        if ($result['skipped'] > 0) {
+            $message .= $result['exhausted']
+                ? " · {$result['skipped']} left unassigned (no Vacant Clean inventory rooms left)"
+                : " · {$result['skipped']} skipped";
+        }
+        $message .= '.';
+
+        return redirect()->back()->with('toast', $message);
+    }
+
+    /**
+     * Display label matching lodge convention: dorm letter + room number (A-12).
+     */
+    private function formatRoomLabel(Room $room): string
+    {
+        $dorm = trim((string) ($room->dorm ?? ''));
+        $number = trim((string) ($room->number ?? ''));
+
+        if ($dorm !== '' && $number !== '') {
+            return "{$dorm}-{$number}";
+        }
+
+        return $number !== '' ? $number : 'Unassigned';
+    }
+
     public function approve(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -377,6 +441,86 @@ class DashboardController extends Controller
             'toast',
             "{$workerName}'s stay extended to {$reservation->departure_date->format('M j, Y')}.",
         );
+    }
+
+    /**
+     * Assign Vacant Clean rooms from Room Inventory to unassigned rows that
+     * belong to Waitlisted / In House / On-Hold (camp tab membership, with a
+     * status fallback when bookings are not linked yet).
+     *
+     * @return array{assigned: int, skipped: int, exhausted: bool}
+     */
+    private function assignInventoryRoomsForQueueTabs(User $user): array
+    {
+        $this->ensureInventoryRoomsMaterialized($user);
+
+        $tabSets = $this->campManagerReservations->tabBookingIdSets($user);
+        $bookingIds = collect(['Waitlisted', 'Checked-In', 'On-Hold'])
+            ->flatMap(fn (string $key) => $tabSets[$key] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $query = Reservation::query()
+            ->with(['worker', 'room'])
+            ->whereNull('room_id')
+            ->whereNotNull('worker_id')
+            ->whereNotIn('status', ['No-Show', 'Check-Out', 'No-Sleep']);
+
+        $query->where(function ($q) use ($bookingIds) {
+            if ($bookingIds !== []) {
+                $q->whereIn('external_booking_id', $bookingIds);
+            }
+
+            // Local-only rows (no camp booking id) that still land on those tabs
+            // via status fallback in the dashboard UI.
+            $q->orWhere(function ($inner) {
+                $inner->whereNull('external_booking_id')
+                    ->whereIn('status', ['Pending', 'Arrival', 'Check-In', 'On-Hold']);
+            });
+        });
+
+        $targets = $query->orderBy('arrival_date')->get();
+
+        if ($targets->isEmpty()) {
+            return ['assigned' => 0, 'skipped' => 0, 'exhausted' => false];
+        }
+
+        return $this->assignmentService->bulkAssignFromInventory($targets, $user);
+    }
+
+    /**
+     * Materialize Room Inventory locations into Vacant Clean `rooms_old` rows
+     * when the concrete room pool is empty (e.g. after a DB sync wiped rooms).
+     */
+    private function ensureInventoryRoomsMaterialized(User $user): void
+    {
+        $hasAssignable = Room::query()
+            ->fromInventory()
+            ->active()
+            ->where('status', \App\Enums\RoomStatus::VacantClean->value)
+            ->whereNull('current_worker_id')
+            ->exists();
+
+        if ($hasAssignable) {
+            return;
+        }
+
+        $locations = RoomInventoryLocation::query()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        if ($locations->isEmpty()) {
+            return;
+        }
+
+        $sync = app(\App\Services\RoomInventory\RoomInventorySyncService::class);
+        foreach ($locations as $location) {
+            $sync->syncLocation($location);
+        }
     }
 
     /**
@@ -486,10 +630,10 @@ class DashboardController extends Controller
             'in24HrArrival' => in_array('24-Hr Arrival', $campTabs, true),
             'onHoldDisplay' => $onHoldDisplay,
             'onHoldAllowed' => $onHoldAllowed,
-            'room' => $room ? "{$room->number} ({$room->dorm})" : 'Unassigned',
+            'room' => $room ? $this->formatRoomLabel($room) : 'Unassigned',
             'dorm' => $room?->dorm,
             'roomId' => $room?->id,
-            'aiRoom' => $recommended ? "{$recommended->number} ({$recommended->dorm})" : null,
+            'aiRoom' => $recommended ? $this->formatRoomLabel($recommended) : null,
             'aiRoomId' => $recommended?->id,
             'aiRoomScore' => $recommended ? $this->aiMatching->score($reservation, $recommended) : null,
             'approval' => $reservation->approval_status ?? 'Pending',
@@ -521,7 +665,9 @@ class DashboardController extends Controller
      */
     private function buildAssignableRooms(): array
     {
+        // Manual Assign uses the same Room Inventory pool as AI Assign.
         return Room::query()
+            ->fromInventory()
             ->active()
             ->with(['activeHold', 'activeMaintenanceHold', 'currentWorker'])
             ->orderBy('dorm')

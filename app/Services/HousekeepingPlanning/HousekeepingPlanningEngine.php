@@ -25,7 +25,8 @@ class HousekeepingPlanningEngine
             ? $this->scheduleIntegration->liveHousekeeperCountForDate($date)
             : null;
         $housekeepers = $liveCount ?? Housekeeper::active()->count();
-        $productive = $housekeepers * $rules->productive_minutes;
+        $productiveMinutes = max(1, (int) ($rules->productive_minutes ?: 480));
+        $productive = $housekeepers * $productiveMinutes;
 
         $unassigned = $tasks->whereNull('housekeeper_id')->whereNotIn('status', ['Completed', 'Passed Inspection', 'Cancelled']);
         $readinessRisks = $tasks->filter(fn ($t) => in_array($t->readiness_risk, ['high', 'critical'], true) && ! in_array($t->status, ['Completed', 'Passed Inspection'], true));
@@ -43,7 +44,7 @@ class HousekeepingPlanningEngine
             ]);
 
         $totalMinutes = (int) $tasks->sum('estimated_minutes');
-        $required = max(1, (int) ceil($totalMinutes / max(1, $rules->productive_minutes)));
+        $required = min(255, max(1, (int) ceil($totalMinutes / $productiveMinutes)));
 
         return new HousekeepingPlanningSummary(
             totalTasks: $tasks->count(),

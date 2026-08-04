@@ -363,12 +363,12 @@ export default function AssignmentEditorModal({
                     {myDorms.length > 0 && (
                         <section className="mb-5 rounded-xl border border-lx-border bg-[#fbfdff] p-3">
                             <h4 className="mb-2 text-xs font-black uppercase tracking-wide text-slate-600">Bulk move by dorm</h4>
-                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <div className="grid grid-cols-1 gap-2 text-xs sm:flex sm:flex-wrap sm:items-center">
                                 <span className="font-bold text-slate-600">Move all rooms in dorm</span>
                                 <select
                                     value={bulkDorm}
                                     onChange={(e) => setBulkDorm(e.target.value)}
-                                    className="rounded-lg border border-lx-border bg-white px-2 py-1.5 text-xs font-bold"
+                                    className="w-full rounded-lg border border-lx-border bg-white px-2 py-2 text-xs font-bold sm:w-auto sm:py-1.5"
                                 >
                                     <option value="">Select dorm…</option>
                                     {myDorms.map((d) => <option key={d} value={d}>{d}</option>)}
@@ -377,7 +377,7 @@ export default function AssignmentEditorModal({
                                 <select
                                     value={bulkTarget}
                                     onChange={(e) => setBulkTarget(e.target.value)}
-                                    className="rounded-lg border border-lx-border bg-white px-2 py-1.5 text-xs font-bold"
+                                    className="w-full rounded-lg border border-lx-border bg-white px-2 py-2 text-xs font-bold sm:w-auto sm:py-1.5"
                                 >
                                     <option value="">Select housekeeper…</option>
                                     {otherHousekeepers.map((h) => <option key={h.id} value={h.id}>{h.name}{h.primaryDorm ? ` (${h.primaryDorm})` : ''}</option>)}
@@ -387,7 +387,7 @@ export default function AssignmentEditorModal({
                                     type="button"
                                     disabled={!bulkDorm || !bulkTarget}
                                     onClick={applyBulkMove}
-                                    className="rounded-lg bg-lx-blue px-3 py-1.5 text-xs font-black text-white disabled:bg-slate-300"
+                                    className="w-full rounded-lg bg-lx-blue px-3 py-2 text-xs font-black text-white disabled:bg-slate-300 sm:w-auto sm:py-1.5"
                                 >
                                     Apply move
                                 </button>
@@ -399,7 +399,63 @@ export default function AssignmentEditorModal({
                     <h4 className="mb-2 text-xs font-black uppercase tracking-wide text-slate-600">
                         Assigned rooms ({myTasks.length + incomingTasks.length})
                     </h4>
-                    <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
+
+                    {/* Mobile cards */}
+                    <div className="space-y-3 md:hidden">
+                        {[...myTasks, ...incomingTasks].length === 0 && (
+                            <p className="rounded-xl border border-dashed border-lx-border px-3 py-4 text-center text-xs text-slate-500">
+                                {pendingChangesDetail.length > 0
+                                    ? `No rooms currently assigned to ${housekeeper.name}. See Pending changes above to review or undo.`
+                                    : 'No rooms assigned.'}
+                            </p>
+                        )}
+                        {[...myTasks, ...incomingTasks].map((t) => {
+                            const current = pendingChanges[t.id] !== undefined ? pendingChanges[t.id] : t.housekeeperId;
+                            const changed = pendingChanges[t.id] !== undefined;
+                            return (
+                                <article
+                                    key={t.id}
+                                    className={`rounded-xl border border-lx-border p-3 ${changed ? 'border-blue-200 bg-blue-50/60' : 'bg-[#fbfdff]'}`}
+                                >
+                                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                        <strong className="text-sm font-black text-lx-navy">
+                                            Room {t.room} <span className="font-bold text-slate-500">· {t.dorm}</span>
+                                        </strong>
+                                        <span className="text-[11px] font-bold text-slate-500">{t.priority}</span>
+                                    </div>
+                                    <div className="mb-2 flex justify-between gap-3 text-xs">
+                                        <span className="capitalize text-slate-600">{t.taskType}</span>
+                                        <span className="font-extrabold text-lx-ink">{t.points} pts · {t.minutes} min</span>
+                                    </div>
+                                    <p className="mb-2 text-[11px] text-slate-500">Required by {t.requiredBy || '—'}</p>
+                                    {t.locked ? (
+                                        <span className="text-[11px] font-bold text-slate-400">Locked ({t.status})</span>
+                                    ) : (
+                                        <label className="block text-[10px] font-black uppercase text-slate-500">
+                                            Reassign to
+                                            <select
+                                                value={current ?? ''}
+                                                onChange={(e) => {
+                                                    const v = e.target.value;
+                                                    changeTask(t.id, v === '' ? null : Number(v));
+                                                }}
+                                                className="mt-1 w-full rounded-lg border border-lx-border bg-white px-2 py-2 text-xs font-bold text-lx-ink"
+                                            >
+                                                <option value="">— Unassigned —</option>
+                                                {allHousekeepers.map((h) => (
+                                                    <option key={h.id} value={h.id}>
+                                                        {h.id === housekeeper.id ? `${h.name} (current)` : h.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    )}
+                                </article>
+                            );
+                        })}
+                    </div>
+
+                    <div className="hidden overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin] md:block">
                         <table className="w-full min-w-[720px] border-collapse text-xs">
                             <thead>
                                 <tr className="bg-slate-50 text-left text-[10px] font-black uppercase text-slate-500">

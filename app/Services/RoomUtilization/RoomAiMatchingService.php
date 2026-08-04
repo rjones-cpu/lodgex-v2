@@ -49,8 +49,8 @@ class RoomAiMatchingService
     {
         $score = 50;
 
-        $requestedType = strtolower($reservation->room_type ?? '');
-        $roomType = strtolower($room->room_type ?? '');
+        $requestedType = $this->normalizeRoomType($reservation->room_type ?? '');
+        $roomType = $this->normalizeRoomType($room->room_type ?? '');
 
         if ($requestedType !== '' && $roomType !== '') {
             if ($requestedType === $roomType) {
@@ -58,6 +58,8 @@ class RoomAiMatchingService
             } elseif (
                 (str_contains($requestedType, 'single') && str_contains($roomType, 'single'))
                 || (str_contains($requestedType, 'double') && str_contains($roomType, 'double'))
+                || (str_contains($requestedType, 'executive') && str_contains($roomType, 'executive'))
+                || (str_contains($requestedType, 'wellsite') && str_contains($roomType, 'wellsite'))
             ) {
                 $score += 20;
             }
@@ -85,15 +87,40 @@ class RoomAiMatchingService
     }
 
     /**
+     * Align camp labels ("Sr. Executive") with inventory labels ("Senior Executive").
+     */
+    private function normalizeRoomType(string $type): string
+    {
+        $normalized = strtolower(trim($type));
+        $normalized = str_replace(['sr.', 'sr '], 'senior ', $normalized);
+        $normalized = (string) preg_replace('/\s+/', ' ', $normalized);
+
+        return trim($normalized);
+    }
+
+    /**
      * @return Collection<int, Room>
      */
     public function assignableRooms(): Collection
     {
+        return $this->inventoryAssignableRooms();
+    }
+
+    /**
+     * Vacant-clean rooms materialized from Room Inventory only.
+     *
+     * @return Collection<int, Room>
+     */
+    public function inventoryAssignableRooms(): Collection
+    {
         return Room::query()
+            ->fromInventory()
             ->active()
             ->where('status', RoomStatus::VacantClean->value)
             ->whereNull('current_worker_id')
             ->with(['activeHold', 'activeMaintenanceHold'])
+            ->orderBy('dorm')
+            ->orderByRaw('CAST(number AS UNSIGNED)')
             ->get()
             ->filter(fn (Room $room) => $this->availability->isAvailableForAssignment($room))
             ->values();

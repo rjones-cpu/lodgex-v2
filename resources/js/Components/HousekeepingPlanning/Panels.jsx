@@ -28,10 +28,24 @@ function Td({ children }) {
     return <td className="border-b border-lx-line p-3 text-xs font-bold text-lx-ink">{children}</td>;
 }
 
+/** Label/value row used by mobile card layouts. */
+function CardRow({ label, children }) {
+    return (
+        <div className="flex items-start justify-between gap-3 py-1 text-xs">
+            <span className="shrink-0 font-bold text-slate-500">{label}</span>
+            <span className="min-w-0 text-right font-extrabold text-lx-ink">{children}</span>
+        </div>
+    );
+}
+
+function EmptyHint({ children }) {
+    return <p className="rounded-xl border border-dashed border-lx-border px-3 py-6 text-center text-xs text-slate-500">{children}</p>;
+}
+
 export function OverviewPanel({ planningSummary = {} }) {
     return (
-        <div className="grid grid-cols-2 gap-3 max-[900px]:grid-cols-1">
-            <div className="rounded-xl border border-lx-border bg-[#fbfdff] p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-lx-border bg-[#fbfdff] p-3 sm:p-4">
                 <h4 className="mb-3 text-sm font-black text-lx-navy">Today&apos;s workload</h4>
                 {[
                     ['Total tasks', planningSummary.totalTasks],
@@ -39,13 +53,10 @@ export function OverviewPanel({ planningSummary = {} }) {
                     ['Points', planningSummary.totalPointsToday],
                     ['Minutes', planningSummary.totalMinutesToday],
                 ].map(([k, v]) => (
-                    <div key={k} className="flex justify-between py-1 text-xs font-extrabold">
-                        <span className="text-slate-500">{k}</span>
-                        <span>{v}</span>
-                    </div>
+                    <CardRow key={k} label={k}>{v}</CardRow>
                 ))}
             </div>
-            <div className="rounded-xl border border-lx-border bg-[#fbfdff] p-4">
+            <div className="rounded-xl border border-lx-border bg-[#fbfdff] p-3 sm:p-4">
                 <h4 className="mb-3 text-sm font-black text-lx-navy">Labour capacity</h4>
                 {[
                     ['Housekeepers scheduled', planningSummary.activeHousekeepers],
@@ -53,10 +64,9 @@ export function OverviewPanel({ planningSummary = {} }) {
                     ['Shortage', planningSummary.labourShortage],
                     ['Productive minutes', planningSummary.availableProductiveMinutes],
                 ].map(([k, v]) => (
-                    <div key={k} className="flex justify-between py-1 text-xs font-extrabold">
-                        <span className="text-slate-500">{k}</span>
+                    <CardRow key={k} label={k}>
                         <span className={k === 'Shortage' && v > 0 ? 'text-red-500' : ''}>{v}</span>
-                    </div>
+                    </CardRow>
                 ))}
             </div>
         </div>
@@ -64,85 +74,143 @@ export function OverviewPanel({ planningSummary = {} }) {
 }
 
 export function TaskBoardPanel({ rows = [] }) {
+    if (!rows.length) return <EmptyHint>No tasks for today.</EmptyHint>;
+
     return (
-        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
-            <table className="w-full min-w-[720px] border-collapse">
-                <thead>
-                    <tr>
-                        <Th>Room</Th>
-                        <Th>Dorm</Th>
-                        <Th>Task</Th>
-                        <Th>Priority</Th>
-                        <Th>Points</Th>
-                        <Th>Housekeeper</Th>
-                        <Th>Status</Th>
-                        <Th>Required by</Th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((r) => (
-                        <tr key={r.id}>
-                            <Td>{r.room}</Td>
-                            <Td>{r.dorm}</Td>
-                            <Td className="capitalize">{r.taskType}</Td>
-                            <Td><Pill value={r.priority} /></Td>
-                            <Td>{r.points}</Td>
-                            <Td>{r.housekeeper}</Td>
-                            <Td><Pill value={r.status} /></Td>
-                            <Td>{r.requiredBy}</Td>
+        <>
+            <div className="space-y-3 md:hidden">
+                {rows.map((r) => (
+                    <article key={r.id} className="rounded-xl border border-lx-border bg-[#fbfdff] p-3">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <strong className="text-sm font-black text-lx-navy">
+                                Room {r.room} <span className="font-bold text-slate-500">· {r.dorm}</span>
+                            </strong>
+                            <div className="flex flex-wrap gap-1.5">
+                                <Pill value={r.priority} />
+                                <Pill value={r.status} />
+                            </div>
+                        </div>
+                        <CardRow label="Task"><span className="capitalize">{r.taskType}</span></CardRow>
+                        <CardRow label="Points">{r.points}</CardRow>
+                        <CardRow label="Housekeeper">{r.housekeeper || '—'}</CardRow>
+                        <CardRow label="Required by">{r.requiredBy || '—'}</CardRow>
+                    </article>
+                ))}
+            </div>
+
+            <div className="hidden overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin] md:block">
+                <table className="w-full min-w-[720px] border-collapse">
+                    <thead>
+                        <tr>
+                            <Th>Room</Th>
+                            <Th>Dorm</Th>
+                            <Th>Task</Th>
+                            <Th>Priority</Th>
+                            <Th>Points</Th>
+                            <Th>Housekeeper</Th>
+                            <Th>Status</Th>
+                            <Th>Required by</Th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={r.id}>
+                                <Td>{r.room}</Td>
+                                <Td>{r.dorm}</Td>
+                                <Td className="capitalize">{r.taskType}</Td>
+                                <Td><Pill value={r.priority} /></Td>
+                                <Td>{r.points}</Td>
+                                <Td>{r.housekeeper}</Td>
+                                <Td><Pill value={r.status} /></Td>
+                                <Td>{r.requiredBy}</Td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </>
     );
 }
 
 export function AssignmentsPanel({ rows = [], tasks = null, housekeepers = null, onEdit = null }) {
     const editable = typeof onEdit === 'function' && Array.isArray(housekeepers);
+
+    if (!rows.length) return <EmptyHint>No assignments published yet.</EmptyHint>;
+
     return (
-        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
-            <table className="w-full min-w-[640px] border-collapse">
-                <thead>
-                    <tr>
-                        <Th>Housekeeper</Th>
-                        <Th>Dorms</Th>
-                        <Th>Rooms</Th>
-                        <Th>Check-outs</Th>
-                        <Th>Points</Th>
-                        <Th>Minutes</Th>
-                        <Th>Status</Th>
-                        {editable && <Th>Edit</Th>}
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((r) => (
-                        <tr key={r.housekeeperId ?? r.housekeeper} className={r.overload ? 'bg-red-50' : ''}>
-                            <Td>{r.housekeeper}</Td>
-                            <Td>{r.dorms}</Td>
-                            <Td>{r.rooms}</Td>
-                            <Td>{r.checkouts}</Td>
-                            <Td>{r.points}</Td>
-                            <Td>{r.minutes}</Td>
-                            <Td>{r.overload ? <Pill value="Overload" /> : <Pill value={r.status} />}</Td>
-                            {editable && (
-                                <Td>
-                                    <button
-                                        type="button"
-                                        onClick={() => onEdit(r)}
-                                        disabled={!r.housekeeperId}
-                                        title={r.housekeeperId ? 'Reassign rooms / dorms for this housekeeper' : 'No housekeeper id'}
-                                        className="rounded-lg border border-lx-blue px-2.5 py-1 text-[11px] font-black text-lx-blue hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
-                                    >
-                                        ✎ Edit
-                                    </button>
-                                </Td>
-                            )}
+        <>
+            <div className="space-y-3 md:hidden">
+                {rows.map((r) => (
+                    <article
+                        key={r.housekeeperId ?? r.housekeeper}
+                        className={`rounded-xl border border-lx-border p-3 ${r.overload ? 'border-red-200 bg-red-50' : 'bg-[#fbfdff]'}`}
+                    >
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <strong className="text-sm font-black text-lx-navy">{r.housekeeper}</strong>
+                            {r.overload ? <Pill value="Overload" /> : <Pill value={r.status} />}
+                        </div>
+                        <CardRow label="Dorms">{r.dorms || '—'}</CardRow>
+                        <CardRow label="Rooms">{r.rooms}</CardRow>
+                        <CardRow label="Check-outs">{r.checkouts}</CardRow>
+                        <CardRow label="Points">{r.points}</CardRow>
+                        <CardRow label="Minutes">{r.minutes}</CardRow>
+                        {editable && (
+                            <button
+                                type="button"
+                                onClick={() => onEdit(r)}
+                                disabled={!r.housekeeperId}
+                                className="mt-3 w-full rounded-lg border border-lx-blue px-3 py-2 text-xs font-black text-lx-blue hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
+                            >
+                                ✎ Edit assignment
+                            </button>
+                        )}
+                    </article>
+                ))}
+            </div>
+
+            <div className="hidden overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin] md:block">
+                <table className="w-full min-w-[640px] border-collapse">
+                    <thead>
+                        <tr>
+                            <Th>Housekeeper</Th>
+                            <Th>Dorms</Th>
+                            <Th>Rooms</Th>
+                            <Th>Check-outs</Th>
+                            <Th>Points</Th>
+                            <Th>Minutes</Th>
+                            <Th>Status</Th>
+                            {editable && <Th>Edit</Th>}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={r.housekeeperId ?? r.housekeeper} className={r.overload ? 'bg-red-50' : ''}>
+                                <Td>{r.housekeeper}</Td>
+                                <Td>{r.dorms}</Td>
+                                <Td>{r.rooms}</Td>
+                                <Td>{r.checkouts}</Td>
+                                <Td>{r.points}</Td>
+                                <Td>{r.minutes}</Td>
+                                <Td>{r.overload ? <Pill value="Overload" /> : <Pill value={r.status} />}</Td>
+                                {editable && (
+                                    <Td>
+                                        <button
+                                            type="button"
+                                            onClick={() => onEdit(r)}
+                                            disabled={!r.housekeeperId}
+                                            title={r.housekeeperId ? 'Reassign rooms / dorms for this housekeeper' : 'No housekeeper id'}
+                                            className="rounded-lg border border-lx-blue px-2.5 py-1 text-[11px] font-black text-lx-blue hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
+                                        >
+                                            ✎ Edit
+                                        </button>
+                                    </Td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </>
     );
 }
 
@@ -157,7 +225,7 @@ export function RoomUtilizationContextPanel({ context = {} }) {
                     Open utilization dashboard →
                 </a>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs font-extrabold max-[600px]:grid-cols-1">
+            <div className="grid grid-cols-1 gap-2 text-xs font-extrabold sm:grid-cols-2 lg:grid-cols-4">
                 {[
                     ['Vacant dirty', context.vacantDirty],
                     ['Cleanable tonight', context.cleanableTonight],
@@ -178,7 +246,7 @@ export function ReadinessPanel({ risks = [], unassigned = [], roomUtilization = 
     return (
         <div>
             <RoomUtilizationContextPanel context={roomUtilization} />
-            <div className="grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div>
                 <h4 className="mb-2 text-sm font-black text-lx-navy">Readiness risks</h4>
                 {risks.length === 0 ? (
@@ -276,100 +344,160 @@ export function HousekeepersPanel({ rows = [] }) {
     }
 
     return (
-        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
-            <table className="w-full min-w-[720px] border-collapse">
-                <thead>
-                    <tr>
-                        <Th>Housekeeper</Th>
-                        <Th>Shift</Th>
-                        <Th>Company</Th>
-                        <Th>Camp</Th>
-                        <Th>Room</Th>
-                        <Th>Rotation start</Th>
-                        <Th>Rotation end</Th>
-                        <Th>Status</Th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((r, i) => (
-                        <tr key={`${r.name}-${i}`}>
-                            <Td>{r.name}</Td>
-                            <Td>{r.shift ?? '—'}</Td>
-                            <Td>{r.company ?? '—'}</Td>
-                            <Td>{r.campId ?? '—'}</Td>
-                            <Td>{r.room ?? '—'}</Td>
-                            <Td>{formatRosterDate(r.rotationStart)}</Td>
-                            <Td>{formatRosterDate(r.rotationEnd)}</Td>
-                            <Td>{HK_ROTATION_STATUS[r.status] || r.status}</Td>
+        <>
+            <div className="space-y-3 md:hidden">
+                {rows.map((r, i) => (
+                    <article key={`${r.name}-${i}`} className="rounded-xl border border-lx-border bg-[#fbfdff] p-3">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <strong className="text-sm font-black text-lx-navy">{r.name}</strong>
+                            <span className="rounded-lg bg-[#eaf2ff] px-2 py-1 text-[11px] font-black text-lx-blue">
+                                {HK_ROTATION_STATUS[r.status] || r.status}
+                            </span>
+                        </div>
+                        <CardRow label="Shift">{r.shift ?? '—'}</CardRow>
+                        <CardRow label="Company">{r.company ?? '—'}</CardRow>
+                        <CardRow label="Camp">{r.campId ?? '—'}</CardRow>
+                        <CardRow label="Room">{r.room ?? '—'}</CardRow>
+                        <CardRow label="Rotation">{formatRosterDate(r.rotationStart)} → {formatRosterDate(r.rotationEnd)}</CardRow>
+                    </article>
+                ))}
+            </div>
+
+            <div className="hidden overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin] md:block">
+                <table className="w-full min-w-[720px] border-collapse">
+                    <thead>
+                        <tr>
+                            <Th>Housekeeper</Th>
+                            <Th>Shift</Th>
+                            <Th>Company</Th>
+                            <Th>Camp</Th>
+                            <Th>Room</Th>
+                            <Th>Rotation start</Th>
+                            <Th>Rotation end</Th>
+                            <Th>Status</Th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        {rows.map((r, i) => (
+                            <tr key={`${r.name}-${i}`}>
+                                <Td>{r.name}</Td>
+                                <Td>{r.shift ?? '—'}</Td>
+                                <Td>{r.company ?? '—'}</Td>
+                                <Td>{r.campId ?? '—'}</Td>
+                                <Td>{r.room ?? '—'}</Td>
+                                <Td>{formatRosterDate(r.rotationStart)}</Td>
+                                <Td>{formatRosterDate(r.rotationEnd)}</Td>
+                                <Td>{HK_ROTATION_STATUS[r.status] || r.status}</Td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </>
     );
 }
 
 export function ForecastPanel({ rows = [] }) {
+    if (!rows.length) return <EmptyHint>No forecast rows yet.</EmptyHint>;
+
     return (
-        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
-            <table className="w-full min-w-[640px] border-collapse">
-                <thead>
-                    <tr>
-                        <Th>Date</Th>
-                        <Th>Arrivals</Th>
-                        <Th>Departures</Th>
-                        <Th>Points</Th>
-                        <Th>Required HK</Th>
-                        <Th>Available</Th>
-                        <Th>Shortage</Th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((r) => (
-                        <tr key={r.date}>
-                            <Td>{r.date}</Td>
-                            <Td>{r.arrivals}</Td>
-                            <Td>{r.departures}</Td>
-                            <Td>{r.points}</Td>
-                            <Td>{r.required}</Td>
-                            <Td>{r.available}</Td>
-                            <Td className={r.shortage > 0 ? 'text-red-500' : ''}>{r.shortage}</Td>
+        <>
+            <div className="space-y-3 md:hidden">
+                {rows.map((r) => (
+                    <article key={r.date} className="rounded-xl border border-lx-border bg-[#fbfdff] p-3">
+                        <strong className="mb-2 block text-sm font-black text-lx-navy">{r.date}</strong>
+                        <CardRow label="Arrivals">{r.arrivals}</CardRow>
+                        <CardRow label="Departures">{r.departures}</CardRow>
+                        <CardRow label="Points">{r.points}</CardRow>
+                        <CardRow label="Required HK">{r.required}</CardRow>
+                        <CardRow label="Available">{r.available}</CardRow>
+                        <CardRow label="Shortage">
+                            <span className={r.shortage > 0 ? 'text-red-500' : ''}>{r.shortage}</span>
+                        </CardRow>
+                    </article>
+                ))}
+            </div>
+
+            <div className="hidden overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin] md:block">
+                <table className="w-full min-w-[640px] border-collapse">
+                    <thead>
+                        <tr>
+                            <Th>Date</Th>
+                            <Th>Arrivals</Th>
+                            <Th>Departures</Th>
+                            <Th>Points</Th>
+                            <Th>Required HK</Th>
+                            <Th>Available</Th>
+                            <Th>Shortage</Th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={r.date}>
+                                <Td>{r.date}</Td>
+                                <Td>{r.arrivals}</Td>
+                                <Td>{r.departures}</Td>
+                                <Td>{r.points}</Td>
+                                <Td>{r.required}</Td>
+                                <Td>{r.available}</Td>
+                                <Td className={r.shortage > 0 ? 'text-red-500' : ''}>{r.shortage}</Td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </>
     );
 }
 
 export function InspectionsPanel({ rows = [] }) {
+    if (!rows.length) return <EmptyHint>No inspections recorded.</EmptyHint>;
+
     return (
-        <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin]">
-            <table className="w-full min-w-[560px] border-collapse">
-                <thead>
-                    <tr>
-                        <Th>Room</Th>
-                        <Th>Dorm</Th>
-                        <Th>Result</Th>
-                        <Th>Score</Th>
-                        <Th>Re-clean</Th>
-                        <Th>Inspector</Th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((r, i) => (
-                        <tr key={i}>
-                            <Td>{r.room}</Td>
-                            <Td>{r.dorm}</Td>
-                            <Td><Pill value={r.result} /></Td>
-                            <Td>{r.score ?? '—'}</Td>
-                            <Td>{r.reclean ? <Pill value="Yes" /> : 'No'}</Td>
-                            <Td>{r.inspector}</Td>
+        <>
+            <div className="space-y-3 md:hidden">
+                {rows.map((r, i) => (
+                    <article key={i} className="rounded-xl border border-lx-border bg-[#fbfdff] p-3">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <strong className="text-sm font-black text-lx-navy">
+                                Room {r.room} <span className="font-bold text-slate-500">· {r.dorm}</span>
+                            </strong>
+                            <Pill value={r.result} />
+                        </div>
+                        <CardRow label="Score">{r.score ?? '—'}</CardRow>
+                        <CardRow label="Re-clean">{r.reclean ? <Pill value="Yes" /> : 'No'}</CardRow>
+                        <CardRow label="Inspector">{r.inspector}</CardRow>
+                    </article>
+                ))}
+            </div>
+
+            <div className="hidden overflow-x-auto overscroll-x-contain rounded-xl border border-lx-border [scrollbar-width:thin] md:block">
+                <table className="w-full min-w-[560px] border-collapse">
+                    <thead>
+                        <tr>
+                            <Th>Room</Th>
+                            <Th>Dorm</Th>
+                            <Th>Result</Th>
+                            <Th>Score</Th>
+                            <Th>Re-clean</Th>
+                            <Th>Inspector</Th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        {rows.map((r, i) => (
+                            <tr key={i}>
+                                <Td>{r.room}</Td>
+                                <Td>{r.dorm}</Td>
+                                <Td><Pill value={r.result} /></Td>
+                                <Td>{r.score ?? '—'}</Td>
+                                <Td>{r.reclean ? <Pill value="Yes" /> : 'No'}</Td>
+                                <Td>{r.inspector}</Td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </>
     );
 }
 

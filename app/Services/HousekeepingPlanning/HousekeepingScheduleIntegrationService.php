@@ -80,10 +80,12 @@ class HousekeepingScheduleIntegrationService
                 'available_housekeepers' => max(0, $forecast->available_housekeepers + $dayFeeds->sum('workforce_delta')),
             ]);
 
-            $required = max(1, (int) ceil($forecast->estimated_minutes / 480));
-            $shortage = max(0, $required - $forecast->available_housekeepers);
+            $required = min(255, max(1, (int) ceil($forecast->estimated_minutes / 480)));
+            $available = min(255, max(0, (int) $forecast->available_housekeepers));
+            $shortage = max(0, $required - $available);
             $forecast->update([
                 'required_housekeepers' => $required,
+                'available_housekeepers' => $available,
                 'shortage_surplus' => -$shortage,
                 'confidence' => 'medium',
             ]);
