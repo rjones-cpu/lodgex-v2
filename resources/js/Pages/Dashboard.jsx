@@ -978,6 +978,9 @@ export default function Dashboard({
     // Skip the first effect fire (the section starts open by default — we
     // only want to auto-scroll on subsequent user toggles).
     const otherInitialMountRef = useRef(true);
+    // Guards the landing auto-selection so it fires once per page load and
+    // never re-selects a row the user has deliberately deselected.
+    const autoSelectedRef = useRef(false);
 
     const statusOptions = STATUS_FILTER_OPTIONS;
     const isModTab = activeTab === 'Modification Request';
@@ -1077,6 +1080,24 @@ export default function Dashboard({
     useEffect(() => {
         if (page > totalPages) setPage(totalPages);
     }, [page, totalPages]);
+
+    // Land on the All tab with its first row already selected so the Control
+    // Panel opens with context instead of an empty rail. Selecting by row
+    // identity (not index 0) keeps this correct if a sort or filter is applied
+    // before the rows arrive.
+    useEffect(() => {
+        if (autoSelectedRef.current || isExceptionsModule) return;
+        if (activeTab !== 'All' || selectedIndex !== -1) return;
+
+        const firstRow = pagedRows[0];
+        if (!firstRow) return;
+
+        const index = reservations.indexOf(firstRow);
+        if (index === -1) return;
+
+        autoSelectedRef.current = true;
+        setSelectedIndex(index);
+    }, [isExceptionsModule, activeTab, selectedIndex, pagedRows, reservations]);
 
     function requestSort(key) {
         setSort((prev) => {

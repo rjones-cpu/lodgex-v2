@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
@@ -25,6 +26,21 @@ class SyncStagingDatabaseCommand extends Command
         {--keep-dump : Keep the temporary .sql dump file instead of deleting it}';
 
     protected $description = 'Dump the staging database and import it into the live smart_lodge database';
+
+    /**
+     * Migrations re-applied after every import.
+     *
+     * The dump replaces the target's FK definitions *and* its `migrations` table,
+     * which reverts these retargets and leaves room assignment broken until they
+     * run again. All three are idempotent, so re-running them each sync is safe.
+     *
+     * @var list<string>
+     */
+    private const POST_IMPORT_MIGRATIONS = [
+        'database/migrations/2026_08_03_210000_retarget_rooms_old_inventory_fk.php',
+        'database/migrations/2026_08_03_211000_retarget_room_fks_to_rooms_old.php',
+        'database/migrations/2026_08_11_120000_retarget_out_of_service_inventory_fk.php',
+    ];
 
     public function handle(): int
     {
@@ -68,6 +84,19 @@ class SyncStagingDatabaseCommand extends Command
             $this->info("Importing into '{$target['database']}' on '{$targetName}'...");
             $this->import($mysqlBin, $targetCnf, $target['database'], $dumpFile);
 
+            $this->info('Re-applying schema retargets removed by the import...');
+            $failedMigrations = $this->reapplyPostImportMigrations($targetName);
+
+            if ($failedMigrations !== []) {
+                $this->error('Import succeeded but these migrations failed: '.implode(', ', $failedMigrations));
+                Log::error('db:sync-staging post-import migrations failed', [
+                    'target_db' => $target['database'],
+                    'failed' => $failedMigrations,
+                ]);
+
+                return self::FAILURE;
+            }
+
             $this->info('Staging database synced successfully.');
             Log::info('db:sync-staging finished successfully', [
                 'source_db' => $source['database'],
@@ -94,6 +123,36 @@ class SyncStagingDatabaseCommand extends Command
                 $this->line("Dump kept at: {$dumpFile}");
             }
         }
+    }
+
+    /**
+     * Re-apply the FK retarget migrations against the freshly imported database.
+     *
+     * @return list<string> paths that failed
+     */
+    private function reapplyPostImportMigrations(string $targetName): array
+    {
+        $failed = [];
+
+        foreach (self::POST_IMPORT_MIGRATIONS as $path) {
+            $this->line("  {$path}");
+
+            // --database also sets the default connection for the migration run,
+            // so the DB::statement() calls inside each migration hit the target.
+            $exitCode = Artisan::call('migrate', [
+                '--path' => $path,
+                '--database' => $targetName,
+                '--force' => true,
+            ]);
+
+            $this->output->write(Artisan::output());
+
+            if ($exitCode !== self::SUCCESS) {
+                $failed[] = $path;
+            }
+        }
+
+        return $failed;
     }
 
     /**
