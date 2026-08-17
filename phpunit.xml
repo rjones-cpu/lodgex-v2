@@ -32,5 +32,10 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="AI_ENABLED" value="true"/>
+        <env name="AI_MODE" value="shadow"/>
+        <env name="AI_PROVIDER" value="mock"/>
+        <env name="AI_DEFAULT_MODEL" value="grok-4.6"/>
+        <env name="XAI_API_KEY" value=""/>
     </php>
 </phpunit>
