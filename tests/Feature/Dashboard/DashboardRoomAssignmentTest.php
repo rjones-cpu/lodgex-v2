@@ -181,7 +181,7 @@ class DashboardRoomAssignmentTest extends TestCase
         $this->assertSame(0, UtilizationAuditLog::query()->where('action', 'room_assigned')->count());
     }
 
-    public function test_ai_assign_room_picks_best_available_room(): void
+    public function test_ai_assign_room_proposes_best_available_room_without_writing(): void
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
@@ -228,13 +228,15 @@ class DashboardRoomAssignmentTest extends TestCase
 
         $reservation->refresh();
 
-        $this->assertSame($womensRoom->id, $reservation->room_id);
+        $this->assertNull($reservation->room_id);
+        $this->assertNull($womensRoom->fresh()->current_worker_id);
 
-        $this->assertDatabaseHas('utilization_audit_logs', [
-            'subject_type' => 'reservation',
-            'subject_id' => $reservation->id,
-            'action' => 'room_ai_assigned',
+        $this->assertDatabaseHas('ai_proposals', [
+            'action' => 'recommend_room',
+            'status' => 'Pending',
         ]);
+
+        $this->assertSame(0, UtilizationAuditLog::query()->where('action', 'room_ai_assigned')->count());
     }
 
     public function test_bulk_assign_inventory_rooms_for_queue_tabs(): void
