@@ -12,6 +12,7 @@ import ReservationNotesModal from '../Components/Dashboard/ReservationNotesModal
 import { AppPageBody, AppPageHeader, AppPageShell } from '../Components/AppPageShell';
 import AppLayout from '../Layouts/AppLayout';
 import UserAccountMenu from '../Components/AccommodationWorkforce/UserAccountMenu';
+import AiShadowProposalPanel from '../Components/Ai/AiShadowProposalPanel';
 
 // Each metric carries its own palette: the border ring, the gradient accent
 // bar (left edge of the card), and the icon bubble fill/foreground. The
@@ -906,6 +907,8 @@ export default function Dashboard({
     lastUpdated = '',
     lodgePolicy = null,
     onHoldPolicy = { onHoldEnabled: true, maxHoldDays: 7 },
+    aiProposals = [],
+    aiFlags = {},
 }) {
     const isExceptionsModule = queueMode === 'exceptions';
     const TABS = isExceptionsModule ? EXCEPTION_TABS : OPERATIONS_TABS;
@@ -1607,7 +1610,7 @@ export default function Dashboard({
                 preserveScroll: true,
                 onFinish: () => setAssignSaving(false),
                 onError: (errors) => {
-                    flash(errors.room || errors.reservation || 'Unable to AI assign room.');
+                    flash(errors.room || errors.reservation || errors.ai || 'Unable to propose an AI room.');
                 },
             },
         );
@@ -1889,6 +1892,13 @@ export default function Dashboard({
                             }`}
                         >
                             <div className="min-w-0">
+                                {!isExceptionsModule && (
+                                <AiShadowProposalPanel
+                                    proposals={aiProposals}
+                                    flags={aiFlags}
+                                    title="Room Inventory Intelligence"
+                                />
+                                )}
                                 {!isExceptionsModule && (
                                 <section className="mb-[18px] rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-3 shadow-lg shadow-blue-100/50 sm:p-4">
                                     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-8">

@@ -11,6 +11,8 @@ use App\Support\LodgePolicyPresenter;
 use App\Services\AccommodationWorkforce\CampManagerModificationRequestsService;
 use App\Services\AccommodationWorkforce\CampManagerReservationsService;
 use App\Services\AccommodationWorkforce\WorkforceReservationSyncService;
+use App\Services\Ai\Agents\RoomInventoryIntelligenceAgent;
+use App\Services\Ai\AiFeatureFlags;
 use App\Services\RoomUtilization\ReservationCheckInService;
 use App\Services\RoomUtilization\ReservationExtendStayService;
 use App\Services\RoomUtilization\RoomAiMatchingService;
@@ -36,6 +38,8 @@ class DashboardController extends Controller
         private readonly WorkforceReservationSyncService $workforceSync,
         private readonly CampManagerReservationsService $campManagerReservations,
         private readonly CampManagerModificationRequestsService $campModificationRequests,
+        private readonly RoomInventoryIntelligenceAgent $roomInventoryAgent,
+        private readonly AiFeatureFlags $aiFlags,
     ) {}
 
     public function index(Request $request): Response
@@ -87,6 +91,8 @@ class DashboardController extends Controller
                 'onHoldEnabled' => $lodgePolicy['onHoldEnabled'],
                 'maxHoldDays' => $lodgePolicy['maxHoldDays'],
             ],
+            'aiProposals' => $this->roomInventoryAgent->presentPending(),
+            'aiFlags' => $this->aiFlags->publicState(RoomInventoryIntelligenceAgent::AGENT),
         ]);
     }
 
@@ -307,17 +313,19 @@ class DashboardController extends Controller
             ->findOrFail($validated['reservation_id']);
 
         try {
-            $reservation = $this->assignmentService->aiAssign($reservation, $request->user());
+            $proposal = $this->roomInventoryAgent->proposeForReservation($reservation, $request->user());
         } catch (ValidationException $exception) {
             return redirect()->back()->withErrors($exception->errors());
         }
 
-        $room = $reservation->room;
+        $roomId = $proposal->payload['room_id'] ?? null;
+        $room = $roomId ? Room::query()->find($roomId) : null;
         $workerName = $reservation->worker?->name ?? 'worker';
+        $roomLabel = $room ? "{$room->number} ({$room->dorm})" : 'a Vacant Clean room';
 
         return redirect()->back()->with(
             'toast',
-            "AI assigned room {$room->number} ({$room->dorm}) to {$workerName}.",
+            "AI proposed {$roomLabel} for {$workerName}. Shadow mode — a person must approve before assignment.",
         );
     }
 

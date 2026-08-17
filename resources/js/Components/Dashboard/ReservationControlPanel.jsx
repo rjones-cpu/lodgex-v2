@@ -122,7 +122,7 @@ export default function ReservationControlPanel({
                                         <span className="sl-sparkle-blue">
                                             <SparkleIcon />
                                         </span>
-                                        AI Room Assignment
+                                        AI Room Proposal
                                     </span>
                                     <ChevronIcon open={aiOpen} />
                                 </button>
@@ -139,8 +139,8 @@ export default function ReservationControlPanel({
 
                                             <p>
                                                 {hasAiRoom
-                                                    ? 'Best match for location, preferences, and housekeeping flow.'
-                                                    : 'No assignable room is currently available for this reservation.'}
+                                                    ? 'Shadow suggestion only. A person must approve before RoomAssignmentService assigns the room.'
+                                                    : 'No assignable Vacant Clean room is currently available for this reservation.'}
                                             </p>
 
                                             <div className="sl-ai-buttons">
@@ -154,7 +154,7 @@ export default function ReservationControlPanel({
                                                         <BedSparkIcon />
                                                     </span>
                                                     <span>
-                                                        <strong>AI Assign</strong>
+                                                        <strong>Propose room</strong>
                                                         <small>~ {aiRoom}</small>
                                                     </span>
                                                 </button>

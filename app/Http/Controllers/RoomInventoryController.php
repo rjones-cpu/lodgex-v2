@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\DormOffMarketHold;
 use App\Models\RoomInventoryLocation;
 use App\Models\RoomInventoryOutOfService;
+use App\Services\Ai\Agents\RoomInventoryIntelligenceAgent;
+use App\Services\Ai\AiFeatureFlags;
 use App\Services\RoomInventory\RoomInventoryAvailabilityService;
 use App\Services\RoomInventory\RoomInventorySyncService;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +38,8 @@ class RoomInventoryController extends Controller
     public function __construct(
         private readonly RoomInventoryAvailabilityService $availability,
         private readonly RoomInventorySyncService $sync,
+        private readonly RoomInventoryIntelligenceAgent $roomInventoryAgent,
+        private readonly AiFeatureFlags $aiFlags,
     ) {}
 
     public function index(Request $request): Response
@@ -77,6 +81,8 @@ class RoomInventoryController extends Controller
                 'created_at' => $r->created_at?->toIso8601String(),
             ])->values(),
             'stats' => $stats,
+            'aiProposals' => $this->roomInventoryAgent->presentPending(),
+            'aiFlags' => $this->aiFlags->publicState(RoomInventoryIntelligenceAgent::AGENT),
             'locationTypes' => self::LOCATION_TYPES,
             'reasons' => self::REASONS,
             'roomCategories' => self::ROOM_CATEGORIES,

@@ -2,6 +2,7 @@ import AppLayout from '../Layouts/AppLayout';
 import { AppPageBody, AppPageShell } from '../Components/AppPageShell';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import AiShadowProposalPanel from '../Components/Ai/AiShadowProposalPanel';
 import {
     Building2,
     MapPin,
@@ -92,6 +93,8 @@ export default function RoomInventory({
     locationTypes = [],
     reasons = [],
     roomCategories = [],
+    aiProposals = [],
+    aiFlags = {},
 }) {
     const { flash: sessionFlash, errors: pageErrors = {} } = usePage().props;
 
@@ -221,6 +224,12 @@ export default function RoomInventory({
                                     </ul>
                                 </div>
                             )}
+
+                            <AiShadowProposalPanel
+                                proposals={aiProposals}
+                                flags={aiFlags}
+                                title="Room Inventory Intelligence"
+                            />
 
                             <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
                                 <BuildLocationSection locationTypes={locationTypes} />

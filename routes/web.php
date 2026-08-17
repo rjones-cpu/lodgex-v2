@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccommodationWorkforceController;
+use App\Http\Controllers\AiProposalController;
 use App\Http\Controllers\CommandCenterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForecastingController;
@@ -77,6 +78,14 @@ Route::post('/dashboard/assign-room', [DashboardController::class, 'assignRoom']
 Route::post('/dashboard/ai-assign-room', [DashboardController::class, 'aiAssignRoom'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.ai-assign-room');
+
+Route::post('/ai/proposals/{proposal}/approve', [AiProposalController::class, 'approve'])
+    ->middleware(['auth', 'verified'])
+    ->name('ai.proposals.approve');
+
+Route::post('/ai/proposals/{proposal}/dismiss', [AiProposalController::class, 'dismiss'])
+    ->middleware(['auth', 'verified'])
+    ->name('ai.proposals.dismiss');
 
 Route::post('/dashboard/assign-inventory-rooms', [DashboardController::class, 'assignInventoryRooms'])
     ->middleware(['auth', 'verified'])
