@@ -18,25 +18,15 @@ class RoomAssignmentService
         private readonly RoomAiMatchingService $aiMatching,
     ) {}
 
+    /**
+     * AI must never assign rooms. Use RoomInventoryIntelligenceAgent to propose,
+     * then a person calls assign() after approval.
+     */
     public function aiAssign(Reservation $reservation, ?User $user = null): Reservation
     {
-        $reservation->loadMissing('worker', 'room');
-
-        $room = $this->aiMatching->bestRoomFor($reservation);
-
-        if (! $room) {
-            throw ValidationException::withMessages([
-                'room' => 'No assignable room matched this reservation.',
-            ]);
-        }
-
-        return $this->assign(
-            $reservation,
-            $room,
-            $user,
-            method: 'ai',
-            matchScore: $this->aiMatching->score($reservation, $room),
-        );
+        throw ValidationException::withMessages([
+            'room' => 'AI cannot assign rooms. Create a proposal and wait for human approval.',
+        ]);
     }
 
     /**

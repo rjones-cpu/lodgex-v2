@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Ai\AiFeatureFlags;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -39,6 +40,7 @@ class HandleInertiaRequests extends Middleware
                 'dailyReport' => $request->session()->get('dailyReport'),
                 'scenarioResult' => $request->session()->get('scenarioResult'),
             ],
+            'ai' => app(AiFeatureFlags::class)->publicState(),
         ];
     }
 }

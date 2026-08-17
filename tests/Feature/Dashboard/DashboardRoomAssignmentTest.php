@@ -96,6 +96,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create([
             'name' => 'James McKenzie',
@@ -122,8 +123,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'room_type' => 'Single Room',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.assign-room'), [
+        $this->post(route('dashboard.assign-room'), [
                 'reservation_id' => $reservation->id,
                 'room_id' => $room->id,
             ])
@@ -149,6 +149,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create(['name' => 'Test Worker', 'company' => 'Test Co']);
         $reservation = Reservation::create([
@@ -170,8 +171,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'current_worker_id' => $worker->id,
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.assign-room'), [
+        $this->post(route('dashboard.assign-room'), [
                 'reservation_id' => $reservation->id,
                 'room_id' => $occupiedRoom->id,
             ])
@@ -181,10 +181,11 @@ class DashboardRoomAssignmentTest extends TestCase
         $this->assertSame(0, UtilizationAuditLog::query()->where('action', 'room_assigned')->count());
     }
 
-    public function test_ai_assign_room_picks_best_available_room(): void
+    public function test_ai_assign_room_proposes_best_available_room_without_writing(): void
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create([
             'name' => 'Sophie Chen',
@@ -219,8 +220,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'room_type' => 'Double Room',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.ai-assign-room'), [
+        $this->post(route('dashboard.ai-assign-room'), [
                 'reservation_id' => $reservation->id,
             ])
             ->assertRedirect()
@@ -228,13 +228,15 @@ class DashboardRoomAssignmentTest extends TestCase
 
         $reservation->refresh();
 
-        $this->assertSame($womensRoom->id, $reservation->room_id);
+        $this->assertNull($reservation->room_id);
+        $this->assertNull($womensRoom->fresh()->current_worker_id);
 
-        $this->assertDatabaseHas('utilization_audit_logs', [
-            'subject_type' => 'reservation',
-            'subject_id' => $reservation->id,
-            'action' => 'room_ai_assigned',
+        $this->assertDatabaseHas('ai_proposals', [
+            'action' => 'recommend_room',
+            'status' => 'Pending',
         ]);
+
+        $this->assertSame(0, UtilizationAuditLog::query()->where('action', 'room_ai_assigned')->count());
     }
 
     public function test_bulk_assign_inventory_rooms_for_queue_tabs(): void
@@ -297,6 +299,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create([
             'name' => 'Liam O’Connor',
@@ -348,6 +351,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create();
+        $this->actingAs($user);
 
         $worker = Worker::create(['name' => 'Unassigned Worker', 'company' => 'Test Co']);
 
@@ -376,6 +380,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create();
+        $this->actingAs($user);
 
         $worker = Worker::create(['name' => 'Extend Test Worker', 'company' => 'Test Co']);
 
@@ -390,8 +395,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'room_type' => 'Single Room',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.extend-stay'), [
+        $this->post(route('dashboard.extend-stay'), [
                 'reservation_id' => $reservation->id,
                 'new_departure_date' => '2025-06-04',
             ])
@@ -414,6 +418,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create();
+        $this->actingAs($user);
 
         $worker = Worker::create(['name' => 'Extend Invalid Worker', 'company' => 'Test Co']);
 
@@ -428,8 +433,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'room_type' => 'Single Room',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.extend-stay'), [
+        $this->post(route('dashboard.extend-stay'), [
                 'reservation_id' => $reservation->id,
                 'new_departure_date' => '2025-05-27',
             ])

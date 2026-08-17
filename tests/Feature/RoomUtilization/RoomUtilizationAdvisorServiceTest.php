@@ -8,7 +8,6 @@ use App\Services\RoomUtilization\CapacityForecastService;
 use App\Services\RoomUtilization\RoomStatusEngine;
 use App\Services\RoomUtilization\RoomUtilizationAdvisorService;
 use Carbon\Carbon;
-use Database\Seeders\RoomUtilizationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,7 +23,7 @@ class RoomUtilizationAdvisorServiceTest extends TestCase
 
     public function test_sync_generates_recommendations_with_fingerprints(): void
     {
-        $this->seed(RoomUtilizationSeeder::class);
+        $this->seedRoomUtilizationDemo();
 
         $pending = AiRecommendation::query()->where('status', 'Pending')->count();
 
@@ -38,7 +37,7 @@ class RoomUtilizationAdvisorServiceTest extends TestCase
 
     public function test_sync_preserves_approved_recommendations(): void
     {
-        $this->seed(RoomUtilizationSeeder::class);
+        $this->seedRoomUtilizationDemo();
 
         $recommendation = AiRecommendation::query()->where('status', 'Pending')->first();
         $this->assertNotNull($recommendation);
@@ -58,18 +57,16 @@ class RoomUtilizationAdvisorServiceTest extends TestCase
 
     public function test_approve_and_dismiss_write_audit_logs(): void
     {
-        $this->seed(RoomUtilizationSeeder::class);
-        $user = \App\Models\User::factory()->create();
+        $this->actingAsCampOperator();
+        $this->seedRoomUtilizationDemo();
 
         $pending = AiRecommendation::query()->where('status', 'Pending')->get();
         $this->assertGreaterThanOrEqual(2, $pending->count());
 
-        $this->actingAs($user)
-            ->post(route('room-utilization.recommendations.approve', $pending[0]))
+        $this->post(route('room-utilization.recommendations.approve', $pending[0]))
             ->assertRedirect();
 
-        $this->actingAs($user)
-            ->post(route('room-utilization.recommendations.dismiss', $pending[1]))
+        $this->post(route('room-utilization.recommendations.dismiss', $pending[1]))
             ->assertRedirect();
 
         $this->assertDatabaseHas('ai_recommendation_audit_logs', [
@@ -84,14 +81,14 @@ class RoomUtilizationAdvisorServiceTest extends TestCase
 
     public function test_room_utilization_page_includes_advisor_payload(): void
     {
-        $this->seed(RoomUtilizationSeeder::class);
-        $user = \App\Models\User::factory()->create();
+        $this->actingAsCampOperator();
+        $this->seedRoomUtilizationDemo();
 
-        $response = $this->actingAs($user)->get(route('room-utilization'));
+        $response = $this->get(route('room-utilization'));
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->component('RoomUtilizationManager')
+            ->component('RoomUtilizationOverview')
             ->has('aiRecommendations.0.category')
             ->has('recentAudit')
         );
