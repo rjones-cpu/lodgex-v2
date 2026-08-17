@@ -1,0 +1,25 @@
+---
+description: LodgeX AI foundation — shadow proposals, official capability IDs, no auto-execution
+globs:
+  - app/Services/Ai/**
+  - app/Services/Scorecard/**
+  - app/Services/Authorization/**
+  - app/Http/Controllers/AiProposalController.php
+  - config/ai.php
+  - docs/ai/**
+  - resources/js/Components/Ai/**
+---
+
+# LodgeX AI
+
+Read `docs/ai/README.md` and `docs/ai/AI_REPOSITORY_ASSESSMENT.md` before changing AI code.
+
+- AI recommends. People approve. Do not assign rooms, publish schedules, write scorecard grades, send formal notices, or auto-execute high-impact ops.
+- Official IDs only: CH-01–CH-11, SL-01–SL-11, MP-01–MP-09. No MP-10. No fourth product.
+- Use the capability resolver. Do not hard-code product dependencies.
+- Proposed actions go through existing LodgeX services after human approval.
+- Default `AI_MODE=shadow`. Never commit `XAI_API_KEY`.
+- Do not calculate payroll. Scorecard grade = lowest component, Laravel only.
+- Only a Lodge Manager may approve overtime (`OvertimeApprovalService`).
+- Reuse approve/dismiss UX. Do not route room proposals through Room Utilization release approve.
+- Minimize diffs. Do not rebuild camp-reservations.
