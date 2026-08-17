@@ -3,6 +3,7 @@
 namespace Tests;
 
 use App\Models\User;
+use Database\Seeders\HousekeepingPlanningSeeder;
 use Database\Seeders\RoomInventorySeeder;
 use Database\Seeders\RoomUtilizationSeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -47,6 +48,16 @@ abstract class TestCase extends BaseTestCase
     {
         $this->seed(RoomInventorySeeder::class);
         $this->seed(RoomUtilizationSeeder::class);
+    }
+
+    /**
+     * Seed HK planning without DatabaseSeeder. That seeder uses
+     * WithoutModelEvents, which skips BelongsToUser user_id stamping.
+     */
+    protected function seedHousekeepingPlanningDemo(): void
+    {
+        $this->seedRoomUtilizationDemo();
+        $this->seed(HousekeepingPlanningSeeder::class);
     }
 
     private function disableSqliteForeignKeys(): void

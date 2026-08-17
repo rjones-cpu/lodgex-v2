@@ -8,7 +8,6 @@ use App\Models\Housekeeper;
 use App\Models\User;
 use App\Services\HousekeepingPlanning\HousekeepingAssignmentService;
 use Carbon\Carbon;
-use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,7 +24,7 @@ class HousekeepingPlanningTest extends TestCase
     private function seedPlanningDemo(): User
     {
         $user = $this->actingAsCampOperator();
-        $this->seed(DatabaseSeeder::class);
+        $this->seedHousekeepingPlanningDemo();
 
         return $user;
     }
