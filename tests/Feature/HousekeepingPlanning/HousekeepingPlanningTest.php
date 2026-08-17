@@ -5,6 +5,7 @@ namespace Tests\Feature\HousekeepingPlanning;
 use App\Models\HkDailyAssignment;
 use App\Models\HkWorkTask;
 use App\Models\Housekeeper;
+use App\Models\User;
 use App\Services\HousekeepingPlanning\HousekeepingAssignmentService;
 use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
@@ -21,9 +22,17 @@ class HousekeepingPlanningTest extends TestCase
         Carbon::setTestNow('2025-05-20');
     }
 
+    private function seedPlanningDemo(): User
+    {
+        $user = $this->actingAsCampOperator();
+        $this->seed(DatabaseSeeder::class);
+
+        return $user;
+    }
+
     public function test_seeder_creates_housekeepers_and_tasks(): void
     {
-        $this->seed(DatabaseSeeder::class);
+        $this->seedPlanningDemo();
 
         $this->assertGreaterThan(0, Housekeeper::active()->count());
         $this->assertGreaterThan(0, HkWorkTask::query()->count());
@@ -31,10 +40,9 @@ class HousekeepingPlanningTest extends TestCase
 
     public function test_housekeeping_planning_page_loads(): void
     {
-        $this->seed(DatabaseSeeder::class);
-        $user = \App\Models\User::factory()->create();
+        $this->seedPlanningDemo();
 
-        $response = $this->actingAs($user)->get(route('housekeeping-planning'));
+        $response = $this->get(route('housekeeping-planning'));
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
@@ -50,11 +58,9 @@ class HousekeepingPlanningTest extends TestCase
 
     public function test_publish_assignments_redirects_with_toast(): void
     {
-        $this->seed(DatabaseSeeder::class);
-        $user = \App\Models\User::factory()->create();
+        $this->seedPlanningDemo();
 
-        $this->actingAs($user)
-            ->post(route('housekeeping-planning.assignments.publish'))
+        $this->post(route('housekeeping-planning.assignments.publish'))
             ->assertRedirect()
             ->assertSessionHas('toast');
     }
@@ -66,7 +72,7 @@ class HousekeepingPlanningTest extends TestCase
      */
     public function test_recalculate_can_run_twice_without_unique_violation(): void
     {
-        $this->seed(DatabaseSeeder::class);
+        $this->seedPlanningDemo();
         $svc = app(HousekeepingAssignmentService::class);
         $hk = Housekeeper::active()->firstOrFail();
 
@@ -86,11 +92,10 @@ class HousekeepingPlanningTest extends TestCase
 
     public function test_reassign_tasks_moves_room_and_recomputes_totals(): void
     {
-        $this->seed(DatabaseSeeder::class);
-        $user = \App\Models\User::factory()->create();
+        $user = $this->seedPlanningDemo();
 
         // Publish first so tasks have housekeepers assigned.
-        $this->actingAs($user)->post(route('housekeeping-planning.assignments.publish'));
+        $this->post(route('housekeeping-planning.assignments.publish'));
 
         $task = HkWorkTask::query()
             ->forDate(Carbon::today()->toDateString())
@@ -103,8 +108,7 @@ class HousekeepingPlanningTest extends TestCase
         $previousHkId = $task->housekeeper_id;
         $newHk = Housekeeper::active()->where('id', '!=', $previousHkId)->firstOrFail();
 
-        $this->actingAs($user)
-            ->post(route('housekeeping-planning.assignments.reassign'), [
+        $this->post(route('housekeeping-planning.assignments.reassign'), [
                 'changes' => [
                     ['taskId' => $task->id, 'housekeeperId' => $newHk->id],
                 ],
@@ -139,9 +143,8 @@ class HousekeepingPlanningTest extends TestCase
 
     public function test_reassign_skips_completed_tasks(): void
     {
-        $this->seed(DatabaseSeeder::class);
-        $user = \App\Models\User::factory()->create();
-        $this->actingAs($user)->post(route('housekeeping-planning.assignments.publish'));
+        $this->seedPlanningDemo();
+        $this->post(route('housekeeping-planning.assignments.publish'));
 
         $task = HkWorkTask::query()
             ->forDate(Carbon::today()->toDateString())
@@ -153,8 +156,7 @@ class HousekeepingPlanningTest extends TestCase
         $originalHkId = $task->housekeeper_id;
         $otherHk = Housekeeper::active()->where('id', '!=', $originalHkId)->firstOrFail();
 
-        $this->actingAs($user)
-            ->post(route('housekeeping-planning.assignments.reassign'), [
+        $this->post(route('housekeeping-planning.assignments.reassign'), [
                 'changes' => [
                     ['taskId' => $task->id, 'housekeeperId' => $otherHk->id],
                 ],

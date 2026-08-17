@@ -96,6 +96,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create([
             'name' => 'James McKenzie',
@@ -122,8 +123,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'room_type' => 'Single Room',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.assign-room'), [
+        $this->post(route('dashboard.assign-room'), [
                 'reservation_id' => $reservation->id,
                 'room_id' => $room->id,
             ])
@@ -149,6 +149,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create(['name' => 'Test Worker', 'company' => 'Test Co']);
         $reservation = Reservation::create([
@@ -170,8 +171,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'current_worker_id' => $worker->id,
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.assign-room'), [
+        $this->post(route('dashboard.assign-room'), [
                 'reservation_id' => $reservation->id,
                 'room_id' => $occupiedRoom->id,
             ])
@@ -185,6 +185,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create([
             'name' => 'Sophie Chen',
@@ -219,8 +220,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'room_type' => 'Double Room',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.ai-assign-room'), [
+        $this->post(route('dashboard.ai-assign-room'), [
                 'reservation_id' => $reservation->id,
             ])
             ->assertRedirect()
@@ -299,6 +299,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create([
             'name' => 'Liam O’Connor',
@@ -350,6 +351,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create();
+        $this->actingAs($user);
 
         $worker = Worker::create(['name' => 'Unassigned Worker', 'company' => 'Test Co']);
 
@@ -378,6 +380,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create();
+        $this->actingAs($user);
 
         $worker = Worker::create(['name' => 'Extend Test Worker', 'company' => 'Test Co']);
 
@@ -392,8 +395,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'room_type' => 'Single Room',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.extend-stay'), [
+        $this->post(route('dashboard.extend-stay'), [
                 'reservation_id' => $reservation->id,
                 'new_departure_date' => '2025-06-04',
             ])
@@ -416,6 +418,7 @@ class DashboardRoomAssignmentTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create();
+        $this->actingAs($user);
 
         $worker = Worker::create(['name' => 'Extend Invalid Worker', 'company' => 'Test Co']);
 
@@ -430,8 +433,7 @@ class DashboardRoomAssignmentTest extends TestCase
             'room_type' => 'Single Room',
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.extend-stay'), [
+        $this->post(route('dashboard.extend-stay'), [
                 'reservation_id' => $reservation->id,
                 'new_departure_date' => '2025-05-27',
             ])

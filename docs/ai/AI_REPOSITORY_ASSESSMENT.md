@@ -64,7 +64,9 @@ Do not route Room Inventory proposals through `RoomUtilizationController::approv
 
 PHPUnit suites under `tests/Feature` and `tests/Unit`. Notable existing assertion: `DashboardRoomAssignmentTest::test_ai_assign_room_picks_best_available_room` expected `POST /dashboard/ai-assign-room` to **write** `room_id` and `room_ai_assigned`.
 
-`RoomUtilizationAdvisorServiceTest::test_room_utilization_page_includes_advisor_payload` expects Inertia component `RoomUtilizationManager`, but `RoomUtilizationController::index` now renders `RoomUtilizationOverview`. That mismatch predates this work.
+`RoomUtilizationAdvisorServiceTest::test_room_utilization_page_includes_advisor_payload` expected Inertia component `RoomUtilizationManager`, but `RoomUtilizationController::index` now renders `RoomUtilizationOverview`. That mismatch predates this work.
+
+Sqlite tests cannot use the live MySQL `rooms` → `rooms_old` rename. Fresh sqlite had no `rooms_old` and no `users.camp_id`, so `RoomInventorySeeder` skipped and `RoomUtilizationSeeder` had nothing to decorate. HTTP tests that seeded then `actingAs` a new user also hid `user_id=null` rows via `BelongsToUser`. Tests now authenticate a camp operator **before** seed and call inventory+utilization together; phpunit sets `ROOM_INVENTORY_SEED_CAMP_ID=1`. Seeders themselves were not rewritten.
 
 ## Frozen / do-not-rebuild
 

@@ -7,7 +7,6 @@ use App\Models\Room;
 use App\Models\Worker;
 use App\Services\RoomUtilization\RoomAvailabilityService;
 use App\Services\RoomUtilization\RoomStatusEngine;
-use Database\Seeders\RoomUtilizationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,7 +16,7 @@ class RoomStatusEngineTest extends TestCase
 
     public function test_summarize_returns_capacity_counts(): void
     {
-        $this->seed(RoomUtilizationSeeder::class);
+        $this->seedRoomUtilizationDemo();
 
         $summary = app(RoomStatusEngine::class)->summarize();
 
@@ -84,15 +83,14 @@ class RoomStatusEngineTest extends TestCase
 
     public function test_room_utilization_page_receives_status_engine_payload(): void
     {
-        $this->seed(RoomUtilizationSeeder::class);
+        $this->actingAsCampOperator();
+        $this->seedRoomUtilizationDemo();
 
-        $user = \App\Models\User::factory()->create();
-
-        $response = $this->actingAs($user)->get(route('room-utilization'));
+        $response = $this->get(route('room-utilization'));
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->component('RoomUtilizationManager')
+            ->component('RoomUtilizationOverview')
             ->has('statusEngine.totalActiveRooms')
             ->has('statusEngine.assignableNow')
             ->has('statusEngine.conflicts')

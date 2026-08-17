@@ -57,6 +57,7 @@ class RoomInventoryIntelligenceTest extends TestCase
     {
         $this->seed(RoomUtilizationSeeder::class);
         $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
 
         $worker = Worker::create([
             'name' => 'Sophie Chen',
@@ -85,8 +86,7 @@ class RoomInventoryIntelligenceTest extends TestCase
             'location' => $womensLocation,
         ]);
 
-        $this->actingAs($user)
-            ->post(route('dashboard.ai-assign-room'), [
+        $this->post(route('dashboard.ai-assign-room'), [
                 'reservation_id' => $reservation->id,
             ])
             ->assertRedirect()
@@ -179,7 +179,9 @@ class RoomInventoryIntelligenceTest extends TestCase
     public function test_assignment_service_ai_assign_refuses_to_write(): void
     {
         $user = User::factory()->create();
+        $worker = Worker::create(['name' => 'No Write', 'company' => 'Acme']);
         $reservation = Reservation::create([
+            'worker_id' => $worker->id,
             'company' => 'Acme',
             'arrival_date' => now()->toDateString(),
             'departure_date' => now()->addDays(2)->toDateString(),

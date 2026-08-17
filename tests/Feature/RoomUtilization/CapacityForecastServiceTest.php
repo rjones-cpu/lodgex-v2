@@ -71,7 +71,7 @@ class CapacityForecastServiceTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->component('RoomUtilizationManager')
+            ->component('RoomUtilizationOverview')
             ->has('forecastDays', 30)
             ->has('forecastOutlook.7d.maxShortage')
             ->has('occupancyByContractor')
