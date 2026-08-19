@@ -1,10 +1,15 @@
 import { APP_NAV_ITEMS } from '../data/appNavItems';
 import LodgexLogo from './LodgexLogo';
 import { Link } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 
 function navHref(item) {
     if (!item.href) return null;
     return route(item.href);
+}
+
+function containsActiveHref(item, activeHref) {
+    return item.href === activeHref || item.children?.some((child) => containsActiveHref(child, activeHref));
 }
 
 function SidebarIcon({ label, isActive }) {
@@ -73,6 +78,12 @@ function SidebarIcon({ label, isActive }) {
                 <path d="m15.5 3.5 5 5" />
                 <path d="M13.5 5.5 18.5 10.5" />
                 <path d="M4 20c4.2-.3 7.7-2.4 10.2-6.2l-3.8-3.8C6.7 12.5 4.5 15.9 4 20Z" />
+            </>
+        ),
+        Workforce: (
+            <>
+                <circle cx="12" cy="8" r="3.2" />
+                <path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" />
             </>
         ),
         Maintenance: (
@@ -168,6 +179,141 @@ function SidebarNavItem({ item, activeHref }) {
     );
 }
 
+function SidebarSubNavItem({ item, activeHref }) {
+    const isActive = item.href === activeHref;
+    const childActive = item.children?.some((child) => containsActiveHref(child, activeHref)) || false;
+    const [open, setOpen] = useState(isActive || childActive);
+
+    useEffect(() => {
+        if (isActive || childActive) {
+            setOpen(true);
+        }
+    }, [isActive, childActive]);
+
+    const href = navHref(item);
+    const itemClassName = `flex min-w-0 flex-1 items-center rounded-lg px-2.5 py-1.5 text-[11px] font-bold leading-tight transition ${
+        isActive
+            ? 'bg-[#006BFF] text-white shadow-[0_8px_14px_rgba(11,102,228,0.2)]'
+            : href
+              ? 'text-[#27415F] hover:bg-[#f0f6ff]'
+              : 'cursor-default text-[#27415F] opacity-60'
+    }`;
+
+    if (!item.children?.length) {
+        return href ? (
+            <Link href={href} className={`mb-1 block last:mb-0 ${itemClassName}`}>
+                {item.label}
+            </Link>
+        ) : (
+            <div className={`mb-1 last:mb-0 ${itemClassName}`} title="Coming soon">
+                {item.label}
+            </div>
+        );
+    }
+
+    return (
+        <div className="mb-1 last:mb-0">
+            <div className="flex items-center">
+                {href ? (
+                    <Link href={href} className={itemClassName}>
+                        {item.label}
+                    </Link>
+                ) : (
+                    <div className={itemClassName}>{item.label}</div>
+                )}
+                <button
+                    type="button"
+                    onClick={() => setOpen((value) => !value)}
+                    aria-expanded={open}
+                    aria-label={`${open ? 'Collapse' : 'Expand'} ${item.label}`}
+                    className="ml-1 rounded-md p-1 text-[#315278] transition hover:bg-[#eef5ff]"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        className={`h-3 w-3 transition ${open ? 'rotate-180' : ''}`}
+                        aria-hidden="true"
+                    >
+                        <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                </button>
+            </div>
+            {open && (
+                <div className="ml-2 mt-1 border-l border-[#d5deea] pl-2">
+                    {item.children.map((child) => (
+                        <SidebarSubNavItem key={child.href || child.label} item={child} activeHref={activeHref} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function SidebarNavGroup({ item, activeHref }) {
+    const childActive = item.children.some((child) => containsActiveHref(child, activeHref));
+    const [open, setOpen] = useState(childActive);
+
+    useEffect(() => {
+        if (childActive) {
+            setOpen(true);
+        }
+    }, [childActive]);
+
+    const parentHref = navHref(item);
+
+    return (
+        <div className="mb-2">
+            <div
+                className={`group flex w-full items-center rounded-[10px] text-[11px] font-bold transition ${
+                    childActive
+                        ? 'border border-[#dce8f5] bg-white text-[#17345f] shadow-[0_6px_14px_rgba(15,23,42,0.06)]'
+                        : 'text-[#27415F] hover:bg-[#f0f6ff]'
+                }`}
+            >
+                {parentHref ? (
+                    <Link href={parentHref} className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2">
+                        <SidebarIcon label={item.label} isActive={false} />
+                        <span className="leading-tight">{item.label}</span>
+                    </Link>
+                ) : (
+                    <span className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2">
+                        <SidebarIcon label={item.label} isActive={false} />
+                        <span className="leading-tight">{item.label}</span>
+                    </span>
+                )}
+                <button
+                    type="button"
+                    onClick={() => setOpen((value) => !value)}
+                    aria-expanded={open}
+                    aria-label={`${open ? 'Collapse' : 'Expand'} ${item.label}`}
+                    className="mr-1.5 rounded-md p-1 text-[#315278] hover:bg-[#eef5ff]"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        className={`h-3.5 w-3.5 transition ${open ? 'rotate-180' : ''}`}
+                        aria-hidden="true"
+                    >
+                        <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                </button>
+            </div>
+
+            {open && (
+                <div className="relative ml-[22px] mt-1 border-l border-[#d5deea] pl-3">
+                    {item.children.map((child) => (
+                        <SidebarSubNavItem key={child.href || child.label} item={child} activeHref={activeHref} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function AppSidebar({ activeHref = null, forceVisible = false }) {
     return (
         <aside
@@ -179,9 +325,13 @@ export default function AppSidebar({ activeHref = null, forceVisible = false }) 
                 <LodgexLogo size="5rem" className="max-w-[200px]" />
             </div>
             <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
-                {APP_NAV_ITEMS.map((item) => (
-                    <SidebarNavItem key={item.label} item={item} activeHref={activeHref} />
-                ))}
+                {APP_NAV_ITEMS.map((item) =>
+                    item.children?.length ? (
+                        <SidebarNavGroup key={item.label} item={item} activeHref={activeHref} />
+                    ) : (
+                        <SidebarNavItem key={item.label} item={item} activeHref={activeHref} />
+                    ),
+                )}
             </nav>
             <div className="shrink-0 pt-4 text-[12px] font-bold text-lx-ink-soft">
                 ‹ Collapse

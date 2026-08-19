@@ -44,6 +44,9 @@ return [
     // Same login-handoff flow; the camp-reservations route accepts an optional /{tab?} segment.
     'single_worker_add_path' => env('ACCOMMODATION_WORKFORCE_SINGLE_WORKER_ADD_PATH', '/scheduling/coordinator/add-single-worker'),
 
+    // Audit Trail iframe — camp-reservations Manager /audit/trail (search, details, notes, undo).
+    'audit_trail_path' => env('ACCOMMODATION_WORKFORCE_AUDIT_TRAIL_PATH', '/audit/trail'),
+
     // Local server-to-server calls: use loopback + Host header so PHP can reach
     // Apache even when camp.site DNS is unavailable to the PHP process.
     'scheduling_api_base' => rtrim(
@@ -63,6 +66,8 @@ return [
     */
     'integration_key' => env('LODGEX_INTEGRATION_KEY'),
     'issue_login_path' => '/api/integrations/lodgex/issue-login-url',
+    'workforce_inventory_options_path' => '/api/integrations/lodgex/workforce/options',
+    'workforce_inventory_rooms_path' => '/api/integrations/lodgex/workforce/rooms',
 
     // Read-only endpoint on the scheduling app reporting how many housekeepers the Accommodation
     // Workforce has scheduled. Feeds Housekeeping Planning's "Housekeeping Schedule" feed.

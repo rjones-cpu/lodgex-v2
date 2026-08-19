@@ -60,6 +60,84 @@ class CampManagerReservationsService
     }
 
     /**
+     * Same In House headcount as Reservation Operations (`/dashboard` In House tab).
+     */
+    public function inHouseCount(User $user): int
+    {
+        if (! Schema::hasTable('bookings') || empty($user->getAttribute('camp_id'))) {
+            return 0;
+        }
+
+        $companyIds = $this->companyIdsForManager($user);
+        if ($companyIds === []) {
+            return 0;
+        }
+
+        return count($this->idsForInHouse((int) $user->getAttribute('camp_id'), $companyIds));
+    }
+
+    /**
+     * Daily In House occupancy for the forecast chart.
+     * Today uses the dashboard In House tab. Other days count the same
+     * published-schedule bookings whose stay covers that date.
+     *
+     * @param  list<string>  $dates  Y-m-d
+     * @return list<array{date: string, occupancy: int}>
+     */
+    public function inHouseByDates(User $user, array $dates): array
+    {
+        $today = Carbon::today()->toDateString();
+        $todayCount = $this->inHouseCount($user);
+
+        if (! Schema::hasTable('bookings') || empty($user->getAttribute('camp_id'))) {
+            return array_map(
+                fn (string $date) => ['date' => $date, 'occupancy' => $date === $today ? $todayCount : 0],
+                $dates,
+            );
+        }
+
+        $companyIds = $this->companyIdsForManager($user);
+        if ($companyIds === []) {
+            return array_map(
+                fn (string $date) => ['date' => $date, 'occupancy' => $date === $today ? $todayCount : 0],
+                $dates,
+            );
+        }
+
+        $rows = $this->baseQuery((int) $user->getAttribute('camp_id'), $companyIds)
+            ->tap(fn ($query) => $this->applyPublishedScheduleScope($query, (int) $user->getAttribute('camp_id')))
+            ->whereIn('bookings.reservation_status', ['in_house', 'checked_in', 'pending', 'arrivals', 'check_out'])
+            ->get(['bookings.arrival_date', 'bookings.check_out', 'bookings.reservation_status']);
+
+        return array_map(function (string $date) use ($rows, $today, $todayCount) {
+            if ($date === $today) {
+                return ['date' => $date, 'occupancy' => $todayCount];
+            }
+
+            $isPast = $date < $today;
+            $occupancy = $rows->filter(function ($row) use ($date, $isPast) {
+                $arrival = $row->arrival_date ? Carbon::parse($row->arrival_date)->toDateString() : null;
+                $depart = $row->check_out ? Carbon::parse($row->check_out)->toDateString() : null;
+                if ($arrival && $arrival > $date) {
+                    return false;
+                }
+                if ($depart && $depart < $date) {
+                    return false;
+                }
+
+                $status = (string) $row->reservation_status;
+                if ($isPast) {
+                    return in_array($status, ['in_house', 'checked_in', 'check_out'], true);
+                }
+
+                return in_array($status, ['in_house', 'checked_in', 'pending', 'arrivals'], true);
+            })->count();
+
+            return ['date' => $date, 'occupancy' => $occupancy];
+        }, $dates);
+    }
+
+    /**
      * Booking rows to mirror into LodgeX reservations (union of Manager tabs).
      *
      * @return list<array<string, mixed>>

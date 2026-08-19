@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export default function AddReservationModal({ open, onClose, onReservationAdded, reservationAddPath = '/reservations/add' }) {
+export default function AddReservationModal({
+    open,
+    onClose,
+    onReservationAdded,
+    reservationAddPath = '/reservations/add',
+    title = 'Add Single Worker',
+    description = 'Add a worker to the Accommodation Workforce schedule — all steps open here.',
+}) {
     const [url, setUrl] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -87,9 +94,9 @@ export default function AddReservationModal({ open, onClose, onReservationAdded,
             <div className="flex min-h-0 w-full max-w-[96vw] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div className="flex items-center justify-between gap-3 border-b border-lx-border px-4 py-3 md:px-5">
                     <div>
-                        <h2 className="m-0 text-base font-black text-lx-navy md:text-lg">Add Single Worker</h2>
+                        <h2 className="m-0 text-base font-black text-lx-navy md:text-lg">{title}</h2>
                         <p className="m-0 text-xs font-bold text-lx-ink-soft">
-                            Add a worker to the Accommodation Workforce schedule — all steps open here.
+                            {description}
                         </p>
                     </div>
                     <button

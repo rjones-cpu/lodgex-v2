@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AccommodationWorkforceController;
+use App\Http\Controllers\AuditTrailController;
+use App\Http\Controllers\WorkforceController;
 use App\Http\Controllers\CommandCenterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForecastingController;
@@ -52,6 +54,10 @@ Route::post('/accomodation-workforce/sync-reservations', [AccommodationWorkforce
 Route::get('/add-single-worker', [AccommodationWorkforceController::class, 'addSingleWorker'])
     ->middleware(['auth', 'verified'])
     ->name('add-single-worker');
+
+Route::get('/audit-trail', [AuditTrailController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('audit-trail');
 
 Route::get('/command-center', [CommandCenterController::class, 'index'])
     ->middleware(['auth', 'verified'])
@@ -121,6 +127,17 @@ Route::get('/room-utilization/manage', [RoomUtilizationController::class, 'manag
 Route::get('/forecasting', [ForecastingController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('forecasting');
+
+Route::middleware(['auth', 'verified'])->prefix('workforce')->name('workforce.')->group(function () {
+    Route::get('/', [WorkforceController::class, 'overview'])->name('overview');
+    Route::get('/schedule', [WorkforceController::class, 'schedule'])->name('schedule');
+    Route::get('/schedule/rooms', [WorkforceController::class, 'scheduleRooms'])->name('schedule.rooms');
+    Route::post('/schedule', [WorkforceController::class, 'storeSchedule'])->name('schedule.store');
+    Route::get('/positions-forecast', [WorkforceController::class, 'positionsForecast'])->name('positions-forecast');
+    Route::get('/staffing-matrix', [WorkforceController::class, 'staffingMatrix'])->name('staffing-matrix');
+    Route::get('/shortages-alerts', [WorkforceController::class, 'shortagesAlerts'])->name('shortages-alerts');
+    Route::get('/reports', [WorkforceController::class, 'reports'])->name('reports');
+});
 
 Route::get('/reports', [ReportsController::class, 'index'])
     ->middleware(['auth', 'verified'])

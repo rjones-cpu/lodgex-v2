@@ -30,9 +30,10 @@ class SyncStagingDatabaseCommand extends Command
     /**
      * Migrations re-applied after every import.
      *
-     * The dump replaces the target's FK definitions *and* its `migrations` table,
-     * which reverts these retargets and leaves room assignment broken until they
-     * run again. All three are idempotent, so re-running them each sync is safe.
+     * The dump replaces the target's FK definitions and camp rows *and* its
+     * `migrations` table, which reverts these fixes and leaves room assignment
+     * and /room-inventory broken until they run again. All are idempotent, so
+     * re-running them each sync is safe.
      *
      * @var list<string>
      */
@@ -40,6 +41,7 @@ class SyncStagingDatabaseCommand extends Command
         'database/migrations/2026_08_03_210000_retarget_rooms_old_inventory_fk.php',
         'database/migrations/2026_08_03_211000_retarget_room_fks_to_rooms_old.php',
         'database/migrations/2026_08_11_120000_retarget_out_of_service_inventory_fk.php',
+        'database/migrations/2026_08_16_090000_rekey_legacy_camp_to_operational_camp.php',
     ];
 
     public function handle(): int
