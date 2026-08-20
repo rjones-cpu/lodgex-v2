@@ -228,7 +228,7 @@ class HousekeepingLabourAgentsTest extends TestCase
         $this->assertStringContainsString('SL-04', HousekeepingLabourTrainingStandard::SYSTEM_INSTRUCTION_32_1);
         $this->assertStringContainsString('SL-11', HousekeepingLabourTrainingStandard::SYSTEM_INSTRUCTION_32_1);
         $this->assertStringContainsString('SL-HK-LAB-FORECAST', HousekeepingLabourTrainingStandard::SYSTEM_INSTRUCTION_32_1);
-        $this->assertStringContainsString('not a LodgeX module ID', HousekeepingLabourTrainingStandard::SYSTEM_INSTRUCTION_32_1);
+        $this->assertStringContainsString('NOT a LodgeX module ID', HousekeepingLabourTrainingStandard::SYSTEM_INSTRUCTION_32_1);
         $this->assertStringContainsString('Level 1A', HousekeepingLabourTrainingStandard::SYSTEM_INSTRUCTION_32_1);
     }
 
