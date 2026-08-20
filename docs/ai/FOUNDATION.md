@@ -19,6 +19,8 @@ Tests force `AI_PROVIDER=mock` in `phpunit.xml`.
 
 Wave 1 agent: Room Inventory Intelligence on **SL-02 + SL-03**, class P. Training: [RESERVATION_AGENT_TRAINING.md](./RESERVATION_AGENT_TRAINING.md). Agent: [ROOM_INVENTORY_INTELLIGENCE_AGENT.md](./ROOM_INVENTORY_INTELLIGENCE_AGENT.md).
 
+Wave 2 agents: Housekeeping Workload on **SL-04** and Labour Forecast on **SL-11**, class P. Training: Housekeeping & Labour Forecast Agent Rules v2.0 (20 Aug 2026), section **32.1**. Agents: [HOUSEKEEPING_WORKLOAD_AGENT.md](./HOUSEKEEPING_WORKLOAD_AGENT.md), [LABOUR_FORECAST_AGENT.md](./LABOUR_FORECAST_AGENT.md). Auto-publish (Level 1A) is OFF. Do not register `SL-HK-LAB-FORECAST` as a module.
+
 ## Turn the flag on
 
 Shadow is already the default (`AI_ENABLED=true`, `AI_MODE=shadow`).
@@ -28,8 +30,9 @@ Shadow is already the default (`AI_ENABLED=true`, `AI_MODE=shadow`).
 3. Set `AI_PROVIDER=xai` (already the non-test default). If the key is empty, the registry falls back to `mock`.
 4. Optional: `AI_DEFAULT_MODEL=grok-4.6` (official slugs only).
 5. Optional: `AI_ROOM_INVENTORY_AGENT=true` (default true).
+5b. Optional: `AI_HOUSEKEEPING_WORKLOAD_AGENT=true` and `AI_LABOUR_FORECAST_AGENT=true` (default true).
 6. Run `php artisan migrate` for `ai_proposals`, `ai_proposal_audit_logs`, `ai_audit_logs`.
-7. Open `/dashboard`, `/room-inventory`, or `/modules/reservations`. Propose a room, then Approve (human) or Dismiss.
+7. Open `/dashboard`, `/room-inventory`, or `/modules/reservations` for Room Inventory Intelligence. Open `/housekeeping-planning` for Housekeeping Workload (SL-04) and Labour Forecast (SL-11).
 
 `AI_MODE=off` disables generation. `AI_MODE=supervised` (Wave 0 alias: `propose`) is the same write policy as shadow: AI still cannot assign; humans still use `RoomAssignmentService::assign`.
 
@@ -42,7 +45,7 @@ Shadow is already the default (`AI_ENABLED=true`, `AI_MODE=shadow`).
 
 ## LangSmith
 
-LangSmith is the agent-management / tracing system. There is no project named `lodgex`. Wave 1 traces to **`lodgex-room-inventory-intelligence`**.
+LangSmith is the agent-management / tracing system. There is no project named `lodgex`. Wave 1 traces to **`lodgex-room-inventory-intelligence`**. Wave 2 traces to **`lodgex-housekeeping-workload`** (SL-04) and **`lodgex-labour-forecast`** (SL-11).
 
 `App\Services\Ai\LangSmithTracer` is a small HTTP wrapper around `AiRunner` (provider-neutral, no PHP LangSmith SDK).
 

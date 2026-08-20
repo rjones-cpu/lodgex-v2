@@ -14,6 +14,8 @@ class AiFeatureFlagsTest extends TestCase
         $this->assertSame('shadow', $flags->mode());
         $this->assertTrue($flags->isShadow());
         $this->assertTrue($flags->generationEnabled('room_inventory_intelligence'));
+        $this->assertTrue($flags->generationEnabled('housekeeping_workload'));
+        $this->assertTrue($flags->generationEnabled('labour_forecast'));
     }
 
     public function test_propose_alias_normalizes_to_supervised(): void

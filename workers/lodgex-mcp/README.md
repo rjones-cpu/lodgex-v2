@@ -4,6 +4,8 @@ Cloudflare Worker source for the live `lodgex-mcp` Worker. There is no separate 
 
 Wave 1 adds **read-only** MCP tools for Room Inventory Intelligence (locked modules **SL-02** Reservations & Occupancy and **SL-03** Front Desk). Class P (proposal / shadow) only.
 
+Wave 2 adds **read-only stubs** for Housekeeping Workload (**SL-04**) and Labour Forecast (**SL-11**). Publish board / overtime / mark Ready are refused.
+
 This PR does **not** deploy. Use wrangler when you are ready to update the existing Worker.
 
 ## Tools
@@ -17,7 +19,10 @@ This PR does **not** deploy. Use wrangler when you are ready to update the exist
 | `list_reservations` | Reservation list |
 | `list_availability` | Stay-night ledger, then Vacant Clean fitness. Vacant Clean is **not** availability. |
 | `create_proposal` | Persist an `AiProposal` (not an assignment) |
+| `get_housekeeping_workload` | SL-04 draft clean list (read-only / labelled draft) |
+| `get_labour_forecast` | SL-11 staffing forecast (read-only / labelled draft) |
 | `assign` / `hold` / `release` / `check_in` | **Refused** |
+| `publish_hk_board` / `approve_overtime` / `mark_ready` | **Refused** |
 
 ## Env (Worker)
 

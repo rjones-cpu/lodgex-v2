@@ -167,6 +167,14 @@ Route::post('/housekeeping-planning/scenarios/run', [HousekeepingPlanningControl
     ->middleware(['auth', 'verified'])
     ->name('housekeeping-planning.scenarios.run');
 
+Route::post('/housekeeping-planning/ai/draft-workload', [HousekeepingPlanningController::class, 'draftWorkload'])
+    ->middleware(['auth', 'verified'])
+    ->name('housekeeping-planning.ai.draft-workload');
+
+Route::post('/housekeeping-planning/ai/draft-labour-forecast', [HousekeepingPlanningController::class, 'draftLabourForecast'])
+    ->middleware(['auth', 'verified'])
+    ->name('housekeeping-planning.ai.draft-labour-forecast');
+
 Route::post('/room-utilization/recommendations/{recommendation}/approve', [RoomUtilizationController::class, 'approveRecommendation'])
     ->middleware(['auth', 'verified'])
     ->name('room-utilization.recommendations.approve');

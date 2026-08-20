@@ -18,11 +18,14 @@ use App\Services\HousekeepingPlanning\HousekeepingPlanningSummary;
 use App\Services\HousekeepingPlanning\HousekeepingScheduleIntegrationService;
 use App\Services\HousekeepingPlanning\HousekeepingScenarioService;
 use App\Services\HousekeepingPlanning\HousekeepingTaskGenerationService;
+use App\Services\Ai\Agents\HousekeepingWorkloadAgent;
+use App\Services\Ai\Agents\LabourForecastAgent;
 use App\Services\RoomUtilization\CapacityForecastService;
 use App\Services\RoomUtilization\RoomStatusEngine;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,6 +42,8 @@ class HousekeepingPlanningController extends Controller
         private readonly HousekeepingScheduleIntegrationService $scheduleIntegration,
         private readonly RoomStatusEngine $roomStatusEngine,
         private readonly CapacityForecastService $capacityForecastService,
+        private readonly HousekeepingWorkloadAgent $workloadAgent,
+        private readonly LabourForecastAgent $labourAgent,
     ) {}
 
     public function index(): Response
@@ -85,7 +90,31 @@ class HousekeepingPlanningController extends Controller
             'scheduleFeeds' => $this->buildScheduleFeeds(),
             'scenarioPresets' => $this->scenarioService->presets(),
             'lastUpdated' => now()->format('M j, Y g:i A'),
+            'housekeepingWorkloadAi' => $this->workloadAgent->shadowState($today),
+            'labourForecastAi' => $this->labourAgent->shadowState($today),
         ]);
+    }
+
+    public function draftWorkload(Request $request): RedirectResponse
+    {
+        try {
+            $this->workloadAgent->draftForDate(Carbon::today(), $request->user());
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withErrors($exception->errors());
+        }
+
+        return redirect()->back()->with('toast', 'Housekeeping Workload draft labelled. The assignment board was not published.');
+    }
+
+    public function draftLabourForecast(Request $request): RedirectResponse
+    {
+        try {
+            $this->labourAgent->forecastFrom(Carbon::today(), $request->user());
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withErrors($exception->errors());
+        }
+
+        return redirect()->back()->with('toast', 'Labour Forecast draft labelled. Overtime was not authorized.');
     }
 
     /**

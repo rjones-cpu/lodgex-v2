@@ -84,7 +84,7 @@ class LangSmithTracer
             'tags' => array_values(array_filter([
                 $request->agent,
                 $request->capabilityId,
-                'wave-1',
+                is_string($request->metadata['wave'] ?? null) ? $request->metadata['wave'] : 'wave-1',
             ])),
         ];
 

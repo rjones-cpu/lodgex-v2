@@ -90,6 +90,42 @@ return [
             'time_out_retention_nights' => 7,
             'rule_version' => 'reservation-rules-1.0',
         ],
+        'housekeeping_workload' => [
+            'enabled' => env('AI_HOUSEKEEPING_WORKLOAD_AGENT', true),
+            'capability' => 'SL-04',
+            'capabilities' => ['SL-04'],
+            'class' => 'P',
+            'mode' => env('AI_HOUSEKEEPING_WORKLOAD_MODE', null),
+            'langsmith_project' => 'lodgex-housekeeping-workload',
+            // Level 1A auto-publish: CONFIGURATION REQUIRED and OFF.
+            'auto_publish' => false,
+            'rule_version' => 'housekeeping-labour-rules-2.0',
+            // Project baseline examples only. Active HkWorkloadRule is the profile.
+            'baseline_examples' => [
+                'max_rooms_per_day' => 29,
+                'max_checkouts_per_day' => 10,
+                'max_points_per_day' => 36,
+                'max_shift_hours' => 11,
+                'productive_minutes' => 480,
+            ],
+        ],
+        'labour_forecast' => [
+            'enabled' => env('AI_LABOUR_FORECAST_AGENT', true),
+            'capability' => 'SL-11',
+            'capabilities' => ['SL-11'],
+            'class' => 'P',
+            'mode' => env('AI_LABOUR_FORECAST_MODE', null),
+            'langsmith_project' => 'lodgex-labour-forecast',
+            'auto_publish' => false,
+            'rule_version' => 'housekeeping-labour-rules-2.0',
+            'coverage_minimum' => (int) env('AI_LABOUR_COVERAGE_MINIMUM', 1),
+            'checkout_to_ready_windows' => [
+                ['label' => 'morning', 'from' => '08:00', 'to' => '11:00'],
+                ['label' => 'midday', 'from' => '11:00', 'to' => '14:00'],
+                ['label' => 'afternoon', 'from' => '14:00', 'to' => '16:00'],
+            ],
+            'task_pools' => [],
+        ],
     ],
 
     /*
@@ -112,14 +148,14 @@ return [
         'SL-01' => ['product' => 'smart_lodge', 'title' => 'Executive dashboard', 'repo_surface' => null],
         'SL-02' => ['product' => 'smart_lodge', 'title' => 'Reservations and Occupancy', 'repo_surface' => 'DashboardController, ReservationManagerController'],
         'SL-03' => ['product' => 'smart_lodge', 'title' => 'Front Desk', 'repo_surface' => 'Dashboard room assignment'],
-        'SL-04' => ['product' => 'smart_lodge', 'title' => 'Housekeeping', 'repo_surface' => 'HousekeepingPlanningController'],
+        'SL-04' => ['product' => 'smart_lodge', 'title' => 'Housekeeping', 'repo_surface' => 'HousekeepingPlanningController, HousekeepingWorkloadAgent'],
         'SL-05' => ['product' => 'smart_lodge', 'title' => 'Guest Services', 'repo_surface' => null],
         'SL-06' => ['product' => 'smart_lodge', 'title' => 'Food Services', 'repo_surface' => null],
         'SL-07' => ['product' => 'smart_lodge', 'title' => 'Maintenance', 'repo_surface' => null],
         'SL-08' => ['product' => 'smart_lodge', 'title' => 'Inventory / Purchasing', 'repo_surface' => null],
         'SL-09' => ['product' => 'smart_lodge', 'title' => 'Utilities', 'repo_surface' => null],
         'SL-10' => ['product' => 'smart_lodge', 'title' => 'Safety / Incidents', 'repo_surface' => null],
-        'SL-11' => ['product' => 'smart_lodge', 'title' => 'Labour Forecasting', 'repo_surface' => null],
+        'SL-11' => ['product' => 'smart_lodge', 'title' => 'Labour Forecasting', 'repo_surface' => 'LabourForecastAgent'],
         'MP-01' => ['product' => 'major_projects', 'title' => 'Project Setup', 'repo_surface' => null],
         'MP-02' => ['product' => 'major_projects', 'title' => 'Demand', 'repo_surface' => null],
         'MP-03' => ['product' => 'major_projects', 'title' => 'Planning', 'repo_surface' => null],
@@ -139,6 +175,8 @@ return [
     'optional_connections' => [
         'SL-02' => ['SL-03'],
         'SL-03' => ['SL-02'],
+        'SL-04' => ['SL-11'],
+        'SL-11' => ['SL-04'],
     ],
 
     'authorization' => [
