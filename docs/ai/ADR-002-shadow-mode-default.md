@@ -11,7 +11,7 @@ Command Center and child-module rules already say decision-support only. The das
 ## Decision
 
 - `AI_MODE=shadow` default
-- Shadow and propose both generate visible proposals; neither lets AI execute high-impact ops
+- Shadow and supervised (`propose` remains an alias) both generate visible proposals; neither lets AI execute high-impact ops
 - Human approve is the only write path, and it uses existing services
 - `AI_MODE=off` disables generation
 - Per-agent overrides live under `config/ai.php` `agents.*`

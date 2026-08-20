@@ -16,9 +16,10 @@ return [
     'enabled' => env('AI_ENABLED', true),
 
     /*
-     * shadow  — generate + display proposals; AI never writes ops state
-     * propose — same as shadow; human approve may call existing services
-     * off     — no generation
+     * shadow      — generate + display proposals; AI never writes ops state
+     * supervised  — same write policy as shadow; a person still approves
+     * propose     — alias of supervised (Wave 0 env compatibility)
+     * off         — no generation
      */
     'mode' => env('AI_MODE', 'shadow'),
 
@@ -48,63 +49,96 @@ return [
         'store' => false,
     ],
 
+    /*
+     | LangSmith is optional tracing. Missing key = skip. Never required at runtime.
+     | Documented env vars: LANGSMITH_API_KEY (or LANGCHAIN_API_KEY),
+     | LANGSMITH_PROJECT / LANGCHAIN_PROJECT, LANGSMITH_ENDPOINT / LANGCHAIN_ENDPOINT,
+     | LANGSMITH_TRACING / LANGCHAIN_TRACING_V2.
+     */
+    'langsmith' => [
+        'enabled' => filter_var(env('LANGSMITH_TRACING', env('LANGCHAIN_TRACING_V2', true)), FILTER_VALIDATE_BOOLEAN),
+        'api_key' => env('LANGSMITH_API_KEY', env('LANGCHAIN_API_KEY')),
+        'endpoint' => env('LANGSMITH_ENDPOINT', env('LANGCHAIN_ENDPOINT', 'https://api.smith.langchain.com')),
+        'project' => env('LANGSMITH_PROJECT', env('LANGCHAIN_PROJECT', 'lodgex-room-inventory-intelligence')),
+        'timeout' => (int) env('LANGSMITH_TIMEOUT', 5),
+    ],
+
+    /*
+     | Cloudflare Worker lodgex-mcp calls these read-only APIs.
+     | LODGEX_API_BASE is a Worker env (never hard-code a staging host).
+     */
+    'mcp' => [
+        'token' => env('LODGEX_MCP_TOKEN'),
+    ],
+
     'agents' => [
         'room_inventory_intelligence' => [
             'enabled' => env('AI_ROOM_INVENTORY_AGENT', true),
-            'capability' => 'SL-01',
+            // Primary locked module. Shared with SL-03 (Front Desk).
+            'capability' => 'SL-02',
+            'capabilities' => ['SL-02', 'SL-03'],
+            'class' => 'P',
             'mode' => env('AI_ROOM_INVENTORY_MODE', null),
+            'langsmith_project' => 'lodgex-room-inventory-intelligence',
+            // 11.3: auto-assign only when config authorizes it. Wave 1 OFF.
+            'auto_assign' => false,
+            // 6.2: positive overbooking disabled; never create or increase a limit.
+            'positive_overbooking' => false,
+            // Pending/option holds do not deduct unless this is explicitly on.
+            'pending_option_holds_deduct' => false,
+            // Time-Out / Room Retained default; beyond this is human-only.
+            'time_out_retention_nights' => 7,
+            'rule_version' => 'reservation-rules-1.0',
         ],
     ],
 
     /*
-     | Official capability IDs only. Titles are observational (this repo had no
-     | official catalog). Unwired IDs stay registered so products can run
-     | standalone without inventing extra IDs.
+     | Official capability IDs only. Titles come from the Master Agent locked map
+     | (Linear: LodgeX AI Agent Map). Do not invent IDs. Unwired IDs stay
+     | registered so products can run standalone.
      */
     'capabilities' => [
-        'CH-01' => ['product' => 'crew_hub', 'title' => null, 'repo_surface' => null],
-        'CH-02' => ['product' => 'crew_hub', 'title' => null, 'repo_surface' => null],
-        'CH-03' => ['product' => 'crew_hub', 'title' => 'Scheduling', 'repo_surface' => 'camp-reservations handoff (AccommodationWorkforce)'],
+        'CH-01' => ['product' => 'crew_hub', 'title' => 'Company Dashboard', 'repo_surface' => null],
+        'CH-02' => ['product' => 'crew_hub', 'title' => 'Worker / Crew', 'repo_surface' => null],
+        'CH-03' => ['product' => 'crew_hub', 'title' => 'Scheduling', 'repo_surface' => null],
         'CH-04' => ['product' => 'crew_hub', 'title' => 'Timesheets', 'repo_surface' => null],
-        'CH-05' => ['product' => 'crew_hub', 'title' => 'LMS', 'repo_surface' => null],
-        'CH-06' => ['product' => 'crew_hub', 'title' => 'Journey Management', 'repo_surface' => null],
-        'CH-07' => ['product' => 'crew_hub', 'title' => 'Readiness', 'repo_surface' => null],
-        'CH-08' => ['product' => 'crew_hub', 'title' => 'Scorecard', 'repo_surface' => 'App\\Services\\Scorecard\\ScorecardGradeCalculator'],
-        'CH-09' => ['product' => 'crew_hub', 'title' => null, 'repo_surface' => null],
-        'CH-10' => ['product' => 'crew_hub', 'title' => null, 'repo_surface' => null],
-        'CH-11' => ['product' => 'crew_hub', 'title' => null, 'repo_surface' => null],
-        'SL-01' => ['product' => 'smart_lodge', 'title' => 'Room Inventory', 'repo_surface' => 'RoomInventoryController'],
-        'SL-02' => ['product' => 'smart_lodge', 'title' => 'Reservations / online schedule', 'repo_surface' => 'Dashboard + AccommodationWorkforce hook'],
-        'SL-03' => ['product' => 'smart_lodge', 'title' => 'Housekeeping Planning', 'repo_surface' => 'HousekeepingPlanningController'],
-        'SL-04' => ['product' => 'smart_lodge', 'title' => 'Room Utilization', 'repo_surface' => 'RoomUtilizationController'],
-        'SL-05' => ['product' => 'smart_lodge', 'title' => 'Command Center', 'repo_surface' => 'CommandCenterController (many widgets demo)'],
-        'SL-06' => ['product' => 'smart_lodge', 'title' => 'Labour Forecaster', 'repo_surface' => 'command-center labour-forecaster view'],
-        'SL-07' => ['product' => 'smart_lodge', 'title' => 'Consumables Intelligence', 'repo_surface' => 'command-center consumables-intelligence view'],
-        'SL-08' => ['product' => 'smart_lodge', 'title' => 'Guest Intelligence', 'repo_surface' => 'command-center guest views'],
-        'SL-09' => ['product' => 'smart_lodge', 'title' => 'Activity Director', 'repo_surface' => 'command-center events-director view'],
-        'SL-10' => ['product' => 'smart_lodge', 'title' => 'Chef', 'repo_surface' => 'command-center food-preferences view'],
-        'SL-11' => ['product' => 'smart_lodge', 'title' => 'Lodge Policy', 'repo_surface' => 'PolicyController'],
-        'MP-01' => ['product' => 'major_projects', 'title' => null, 'repo_surface' => null],
-        'MP-02' => ['product' => 'major_projects', 'title' => null, 'repo_surface' => null],
-        'MP-03' => ['product' => 'major_projects', 'title' => null, 'repo_surface' => null],
-        'MP-04' => ['product' => 'major_projects', 'title' => null, 'repo_surface' => null],
-        'MP-05' => ['product' => 'major_projects', 'title' => null, 'repo_surface' => null],
-        'MP-06' => ['product' => 'major_projects', 'title' => null, 'repo_surface' => null],
-        'MP-07' => ['product' => 'major_projects', 'title' => null, 'repo_surface' => null],
-        'MP-08' => ['product' => 'major_projects', 'title' => null, 'repo_surface' => null],
-        'MP-09' => ['product' => 'major_projects', 'title' => 'Hierarchy', 'repo_surface' => null],
+        'CH-05' => ['product' => 'crew_hub', 'title' => 'Readiness', 'repo_surface' => null],
+        'CH-06' => ['product' => 'crew_hub', 'title' => 'Accommodations', 'repo_surface' => null],
+        'CH-07' => ['product' => 'crew_hub', 'title' => 'Journey Management', 'repo_surface' => null],
+        'CH-08' => ['product' => 'crew_hub', 'title' => 'LMS', 'repo_surface' => null],
+        'CH-09' => ['product' => 'crew_hub', 'title' => 'Hierarchy', 'repo_surface' => null],
+        'CH-10' => ['product' => 'crew_hub', 'title' => 'Worker App', 'repo_surface' => null],
+        'CH-11' => ['product' => 'crew_hub', 'title' => 'Service Rating', 'repo_surface' => 'App\\Services\\Scorecard\\ScorecardGradeCalculator'],
+        'SL-01' => ['product' => 'smart_lodge', 'title' => 'Executive dashboard', 'repo_surface' => null],
+        'SL-02' => ['product' => 'smart_lodge', 'title' => 'Reservations and Occupancy', 'repo_surface' => 'DashboardController, ReservationManagerController'],
+        'SL-03' => ['product' => 'smart_lodge', 'title' => 'Front Desk', 'repo_surface' => 'Dashboard room assignment'],
+        'SL-04' => ['product' => 'smart_lodge', 'title' => 'Housekeeping', 'repo_surface' => 'HousekeepingPlanningController'],
+        'SL-05' => ['product' => 'smart_lodge', 'title' => 'Guest Services', 'repo_surface' => null],
+        'SL-06' => ['product' => 'smart_lodge', 'title' => 'Food Services', 'repo_surface' => null],
+        'SL-07' => ['product' => 'smart_lodge', 'title' => 'Maintenance', 'repo_surface' => null],
+        'SL-08' => ['product' => 'smart_lodge', 'title' => 'Inventory / Purchasing', 'repo_surface' => null],
+        'SL-09' => ['product' => 'smart_lodge', 'title' => 'Utilities', 'repo_surface' => null],
+        'SL-10' => ['product' => 'smart_lodge', 'title' => 'Safety / Incidents', 'repo_surface' => null],
+        'SL-11' => ['product' => 'smart_lodge', 'title' => 'Labour Forecasting', 'repo_surface' => null],
+        'MP-01' => ['product' => 'major_projects', 'title' => 'Project Setup', 'repo_surface' => null],
+        'MP-02' => ['product' => 'major_projects', 'title' => 'Demand', 'repo_surface' => null],
+        'MP-03' => ['product' => 'major_projects', 'title' => 'Planning', 'repo_surface' => null],
+        'MP-04' => ['product' => 'major_projects', 'title' => 'Movement', 'repo_surface' => null],
+        'MP-05' => ['product' => 'major_projects', 'title' => 'Requirements', 'repo_surface' => null],
+        'MP-06' => ['product' => 'major_projects', 'title' => 'Lodging and Travel', 'repo_surface' => null],
+        'MP-07' => ['product' => 'major_projects', 'title' => 'Time', 'repo_surface' => null],
+        'MP-08' => ['product' => 'major_projects', 'title' => 'Performance', 'repo_surface' => null],
+        'MP-09' => ['product' => 'major_projects', 'title' => 'Hierarchy / Governance', 'repo_surface' => null],
     ],
 
     /*
-     | Optional connections only. Empty means the capability can run standalone.
-     | Do not treat these as hard product dependencies.
+     | Optional wiring only. Empty means the capability can run standalone.
+     | Do not treat these as hard product dependencies. Do not hard-code Crew Hub
+     | or Major Projects into Smart Lodge agents.
      */
     'optional_connections' => [
-        'SL-01' => ['SL-02', 'SL-04'],
-        'SL-02' => ['CH-03', 'SL-01'],
-        'SL-03' => ['SL-01', 'SL-04'],
-        'SL-04' => ['SL-01', 'SL-02'],
-        'CH-03' => ['SL-02'],
+        'SL-02' => ['SL-03'],
+        'SL-03' => ['SL-02'],
     ],
 
     'authorization' => [

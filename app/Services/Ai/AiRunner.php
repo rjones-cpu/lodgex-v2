@@ -13,6 +13,7 @@ class AiRunner
         private readonly AiOutputValidator $validator,
         private readonly AiAuditLogger $auditLogger,
         private readonly AiFeatureFlags $flags,
+        private readonly LangSmithTracer $langsmith,
     ) {}
 
     public function complete(AiCompletionRequest $request, ?User $user = null): AiCompletionResult
@@ -20,8 +21,9 @@ class AiRunner
         $model = $request->model ?? (string) config('ai.default_model', 'grok-4.6');
         $this->validator->assertModelAllowed($model);
 
-        $provider = $this->registry->driver();
-        $result = $provider->complete($request);
+        $result = $this->langsmith->trace($request, function () use ($request) {
+            return $this->registry->driver()->complete($request);
+        });
 
         $this->auditLogger->log(
             action: 'provider_complete',
@@ -35,6 +37,9 @@ class AiRunner
             context: [
                 'mode' => $this->flags->mode($request->agent),
                 'response_id' => $result->providerResponseId,
+                'langsmith_project' => $this->langsmith->enabled()
+                    ? $this->langsmith->projectFor($request->agent)
+                    : null,
                 'input_roles' => array_map(fn (array $m) => $m['role'] ?? '', $request->input()),
             ],
         );

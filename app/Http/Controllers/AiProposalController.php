@@ -22,6 +22,10 @@ class AiProposalController extends Controller
             return redirect()->back()->withErrors($exception->errors());
         }
 
+        if ($reservation === null) {
+            return redirect()->back()->with('toast', 'Conflict flag acknowledged. No occupancy was written.');
+        }
+
         $room = $reservation->room;
         $workerName = $reservation->worker?->name ?? 'worker';
         $roomLabel = $room ? "{$room->number} ({$room->dorm})" : 'room';

@@ -92,4 +92,38 @@ class CapabilityResolver
     {
         return self::PRODUCTS;
     }
+
+    /**
+     * Locked IDs an agent is bound to. Official IDs only.
+     *
+     * @return list<string>
+     */
+    public function capabilitiesForAgent(string $agent): array
+    {
+        $ids = config("ai.agents.{$agent}.capabilities", []);
+        if (! is_array($ids) || $ids === []) {
+            $single = config("ai.agents.{$agent}.capability");
+            $ids = is_string($single) && $single !== '' ? [$single] : [];
+        }
+
+        return array_values(array_filter(
+            $ids,
+            fn ($id) => is_string($id) && $this->exists($id),
+        ));
+    }
+
+    public function primaryCapabilityForAgent(string $agent): ?string
+    {
+        return $this->capabilitiesForAgent($agent)[0] ?? null;
+    }
+
+    /**
+     * @param  list<string>  $ids
+     */
+    public function assertKnownMany(array $ids): void
+    {
+        foreach ($ids as $id) {
+            $this->assertKnown($id);
+        }
+    }
 }

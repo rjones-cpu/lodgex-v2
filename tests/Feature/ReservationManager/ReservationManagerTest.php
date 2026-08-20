@@ -22,6 +22,12 @@ class ReservationManagerTest extends TestCase
         $this->actingAs($user)
             ->get(route('reservations'))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('ReservationManager'));
+            ->assertInertia(fn ($page) => $page
+                ->component('ReservationManager')
+                ->has('aiProposals')
+                ->where('aiFlags.mode', 'shadow')
+                ->where('aiFlags.shadow', true)
+                ->where('aiFlags.capabilities', ['SL-02', 'SL-03'])
+            );
     }
 }

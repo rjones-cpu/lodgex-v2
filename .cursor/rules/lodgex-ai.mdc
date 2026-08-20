@@ -16,6 +16,9 @@ Read `docs/ai/README.md` and `docs/ai/AI_REPOSITORY_ASSESSMENT.md` before changi
 
 - AI recommends. People approve. Do not assign rooms, publish schedules, write scorecard grades, send formal notices, or auto-execute high-impact ops.
 - Official IDs only: CH-01–CH-11, SL-01–SL-11, MP-01–MP-09. No MP-10. No fourth product.
+- Room Inventory Intelligence is SL-02 + SL-03 (class P). SL-01 is Lodge Executive Brief.
+- Availability is a stay-night ledger. Vacant Clean is check-in fitness only, after inventory math.
+- Training: `docs/ai/RESERVATION_AGENT_TRAINING.md` (enterprise standard v1.0, 20 Aug 2026).
 - Use the capability resolver. Do not hard-code product dependencies.
 - Proposed actions go through existing LodgeX services after human approval.
 - Default `AI_MODE=shadow`. Never commit `XAI_API_KEY`.
