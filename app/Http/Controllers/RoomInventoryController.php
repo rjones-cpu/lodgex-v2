@@ -59,6 +59,12 @@ class RoomInventoryController extends Controller
 
         $stats = $this->availability->buildStats($locations, $outOfService);
 
+        try {
+            $this->roomInventoryAgent->scanConflicts($request->user());
+        } catch (\Throwable) {
+            // Shadow scan must never block Room Inventory.
+        }
+
         return Inertia::render('RoomInventory', [
             'locations' => $locations->map(fn (RoomInventoryLocation $loc) => [
                 'id' => $loc->id,

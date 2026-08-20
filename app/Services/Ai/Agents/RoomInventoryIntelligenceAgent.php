@@ -11,9 +11,10 @@ use App\Services\Ai\AiFeatureFlags;
 use App\Services\Ai\AiOutputValidator;
 use App\Services\Ai\AiRunner;
 use App\Services\Ai\CapabilityResolver;
+use App\Services\Ai\RoomInventoryAvailabilityInspector;
+use App\Services\Ai\RoomInventoryConflictScanner;
 use App\Services\Ai\Support\AiCompletionRequest;
 use App\Services\RoomUtilization\RoomAiMatchingService;
-use App\Services\RoomUtilization\RoomAvailabilityService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -21,11 +22,19 @@ class RoomInventoryIntelligenceAgent
 {
     public const AGENT = 'room_inventory_intelligence';
 
-    public const CAPABILITY = 'SL-01';
+    /** Primary locked module (Reservations & Occupancy). */
+    public const CAPABILITY = 'SL-02';
+
+    /** Shared with Front Desk. Official IDs only. */
+    public const CAPABILITIES = ['SL-02', 'SL-03'];
+
+    /** Proposal / shadow only. */
+    public const CLASS_MODE = 'P';
 
     public function __construct(
         private readonly RoomAiMatchingService $matching,
-        private readonly RoomAvailabilityService $availability,
+        private readonly RoomInventoryAvailabilityInspector $inspector,
+        private readonly RoomInventoryConflictScanner $conflicts,
         private readonly CapabilityResolver $capabilities,
         private readonly AiFeatureFlags $flags,
         private readonly AiOutputValidator $validator,
@@ -37,13 +46,8 @@ class RoomInventoryIntelligenceAgent
      */
     public function proposeForReservation(Reservation $reservation, ?User $user = null): AiProposal
     {
-        if (! $this->flags->generationEnabled(self::AGENT)) {
-            throw ValidationException::withMessages([
-                'ai' => 'Room Inventory Intelligence is turned off.',
-            ]);
-        }
-
-        $this->capabilities->assertKnown(self::CAPABILITY);
+        $this->assertGenerationEnabled();
+        $this->capabilities->assertKnownMany(self::CAPABILITIES);
 
         $reservation->loadMissing('worker', 'room');
 
@@ -54,7 +58,7 @@ class RoomInventoryIntelligenceAgent
         }
 
         $room = $this->matching->bestRoomFor($reservation);
-        if (! $room || ! $this->availability->isAvailableForAssignment($room)) {
+        if (! $room || ! $this->inspector->isAvailable($room, $reservation)) {
             throw ValidationException::withMessages([
                 'room' => 'No assignable Vacant Clean room matched this reservation.',
             ]);
@@ -66,10 +70,11 @@ class RoomInventoryIntelligenceAgent
             'reservation_id' => $reservation->id,
             'room_id' => $room->id,
             'score' => $score,
+            'bound_capabilities' => self::CAPABILITIES,
             'execute_via' => 'RoomAssignmentService::assign',
         ]);
 
-        $fingerprint = sha1(self::AGENT.'|'.$reservation->id.'|'.$room->id);
+        $fingerprint = sha1(self::AGENT.'|recommend_room|'.$reservation->id.'|'.$room->id);
         $explanation = $this->explain($reservation, $room, $score, $user);
 
         $existing = AiProposal::query()->where('fingerprint', $fingerprint)->first();
@@ -100,6 +105,36 @@ class RoomInventoryIntelligenceAgent
     }
 
     /**
+     * Persist conflict flags as flag_risk proposals. Never writes occupancy.
+     *
+     * @return Collection<int, AiProposal>
+     */
+    public function scanConflicts(?User $user = null, int $limit = 40): Collection
+    {
+        if (! $this->flags->generationEnabled(self::AGENT)) {
+            return collect();
+        }
+
+        $this->capabilities->assertKnownMany(self::CAPABILITIES);
+
+        $created = collect();
+
+        foreach ($this->conflicts->detect() as $flag) {
+            if ($created->count() >= $limit) {
+                break;
+            }
+
+            try {
+                $created->push($this->persistConflictFlag($flag, $user));
+            } catch (ValidationException) {
+                continue;
+            }
+        }
+
+        return $created->filter()->values();
+    }
+
+    /**
      * @param  Collection<int, Reservation>  $reservations
      * @return Collection<int, AiProposal>
      */
@@ -110,14 +145,15 @@ class RoomInventoryIntelligenceAgent
         }
 
         $created = collect();
-        $pool = $this->matching->inventoryAssignableRooms();
+        $pool = $this->matching->inventoryAssignableRooms()
+            ->filter(fn (Room $room) => $this->inspector->isAvailable($room));
 
         foreach ($reservations as $reservation) {
             if ($reservation->room_id || ! $reservation->worker_id) {
                 continue;
             }
 
-            if (in_array($reservation->status, ['No-Show', 'Check-Out', 'No-Sleep'], true)) {
+            if (in_array($reservation->status, RoomInventoryAvailabilityInspector::TERMINAL_STATUSES, true)) {
                 continue;
             }
 
@@ -128,6 +164,7 @@ class RoomInventoryIntelligenceAgent
 
             try {
                 $created->push($this->proposeForReservation($reservation, $user));
+                $pool = $pool->reject(fn (Room $r) => $r->id === $room->id)->values();
             } catch (ValidationException) {
                 continue;
             }
@@ -156,9 +193,12 @@ class RoomInventoryIntelligenceAgent
      */
     public function present(AiProposal $proposal): array
     {
+        $bound = $proposal->payload['bound_capabilities'] ?? self::CAPABILITIES;
+
         return [
             'id' => $proposal->id,
             'capabilityId' => $proposal->capability_id,
+            'capabilityIds' => $bound,
             'agent' => $proposal->agent,
             'action' => $proposal->action,
             'issue' => $proposal->issue,
@@ -172,7 +212,179 @@ class RoomInventoryIntelligenceAgent
             'reservationId' => $proposal->payload['reservation_id'] ?? null,
             'roomId' => $proposal->payload['room_id'] ?? null,
             'score' => $proposal->payload['score'] ?? null,
+            'conflictCode' => $proposal->payload['code'] ?? null,
         ];
+    }
+
+    /**
+     * Read models for the Cloudflare MCP surface. No occupancy writes.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listRooms(int $limit = 200): array
+    {
+        return Room::query()
+            ->fromInventory()
+            ->active()
+            ->with(['activeHold', 'activeMaintenanceHold', 'currentWorker'])
+            ->orderBy('dorm')
+            ->orderByRaw('CAST(number AS UNSIGNED)')
+            ->limit($limit)
+            ->get()
+            ->map(fn (Room $room) => $this->presentRoom($room))
+            ->all();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function listReservations(int $limit = 200): array
+    {
+        return Reservation::query()
+            ->with(['worker', 'room'])
+            ->orderByDesc('arrival_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn (Reservation $reservation) => $this->presentReservation($reservation))
+            ->all();
+    }
+
+    /**
+     * @return array{rooms: int, occupying: int, vacant_clean_available: int, conflicts: int}
+     */
+    public function occupancySummary(): array
+    {
+        $rooms = Room::query()->fromInventory()->active()->with(['activeHold', 'activeMaintenanceHold'])->get();
+        $reservations = Reservation::query()->with(['room', 'worker'])->get();
+        $available = $rooms->filter(fn (Room $room) => $this->inspector->isAvailable($room))->count();
+
+        return [
+            'rooms' => $rooms->count(),
+            'occupying' => $reservations->filter(
+                fn (Reservation $reservation) => $this->inspector->occupiesInventory($reservation),
+            )->count(),
+            'vacant_clean_available' => $available,
+            'conflicts' => $this->conflicts->detect($rooms, $reservations)->count(),
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function listAvailability(?int $reservationId = null, int $limit = 200): array
+    {
+        $for = $reservationId ? Reservation::query()->find($reservationId) : null;
+        $rooms = $for
+            ? $this->inspector->availableRooms($for)
+            : $this->inspector->availableRooms();
+
+        return $rooms
+            ->take($limit)
+            ->map(fn (Room $room) => $this->presentRoom($room, $for))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function presentRoom(Room $room, ?Reservation $for = null): array
+    {
+        $reasons = $this->inspector->unavailableReasons($room, $for);
+
+        return [
+            'id' => $room->id,
+            'number' => $room->number,
+            'dorm' => $room->dorm,
+            'room_type' => $room->room_type,
+            'status' => $room->status,
+            'current_worker_id' => $room->current_worker_id,
+            'from_inventory' => $room->room_inventory_location_id !== null,
+            'available' => $reasons === [],
+            'unavailable_reasons' => $reasons,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function presentReservation(Reservation $reservation): array
+    {
+        return [
+            'id' => $reservation->id,
+            'worker' => $reservation->worker?->name,
+            'company' => $reservation->company,
+            'status' => $reservation->status,
+            'room_id' => $reservation->room_id,
+            'room_number' => $reservation->room?->number,
+            'dorm' => $reservation->room?->dorm,
+            'arrival_date' => $reservation->arrival_date?->toDateString(),
+            'departure_date' => $reservation->departure_date?->toDateString(),
+            'room_type' => $reservation->room_type,
+            'occupies_inventory' => $this->inspector->occupiesInventory($reservation),
+        ];
+    }
+
+    private function assertGenerationEnabled(): void
+    {
+        if (! $this->flags->generationEnabled(self::AGENT)) {
+            throw ValidationException::withMessages([
+                'ai' => 'Room Inventory Intelligence is turned off.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $flag
+     */
+    private function persistConflictFlag(array $flag, ?User $user): ?AiProposal
+    {
+        $payload = $this->validator->validateProposalPayload([
+            'action' => 'flag_risk',
+            'code' => $flag['code'],
+            'room_id' => $flag['room_id'] ?? null,
+            'reservation_id' => $flag['reservation_id'] ?? null,
+            'bound_capabilities' => self::CAPABILITIES,
+            'execute_via' => null,
+        ]);
+
+        $fingerprint = sha1(self::AGENT.'|flag_risk|'.$flag['code'].'|'.($flag['room_id'] ?? '').'|'.($flag['reservation_id'] ?? ''));
+        $existing = AiProposal::query()->where('fingerprint', $fingerprint)->first();
+
+        if ($existing && in_array($existing->status, ['Approved', 'Dismissed'], true)) {
+            return null;
+        }
+
+        $proposal = AiProposal::query()->updateOrCreate(
+            ['fingerprint' => $fingerprint],
+            [
+                'user_id' => $user?->id ?? $existing?->user_id,
+                'capability_id' => self::CAPABILITY,
+                'agent' => self::AGENT,
+                'action' => 'flag_risk',
+                'issue' => $flag['issue'],
+                'risk_level' => $flag['risk'],
+                'data_used' => implode('; ', array_filter([
+                    'RoomInventoryConflictScanner',
+                    $flag['code'],
+                    isset($flag['room_number']) ? "room {$flag['room_number']} {$flag['dorm']} {$flag['status']}" : null,
+                    isset($flag['reservation_id']) ? "reservation #{$flag['reservation_id']}" : null,
+                    'SL-02 + SL-03',
+                ])),
+                'recommendation' => $flag['recommendation'],
+                'approval_required' => 'Human acknowledgement. AI will not write occupancy.',
+                'next_action' => 'Review the conflict, then Approve to acknowledge or Dismiss.',
+                'status' => 'Pending',
+                'payload' => $payload,
+                'explanation' => null,
+            ],
+        );
+
+        if ($proposal->wasRecentlyCreated) {
+            $this->logProposal($proposal, 'generated', $user, 'Room Inventory Intelligence flagged a conflict.');
+        }
+
+        return $proposal;
     }
 
     private function explain(Reservation $reservation, Room $room, int $score, ?User $user): string
@@ -184,7 +396,7 @@ class RoomInventoryIntelligenceAgent
                 input: [
                     [
                         'role' => 'system',
-                        'content' => 'You explain LodgeX room-match proposals. Never assign a room. Never instruct anyone to write the database. AI recommends; people approve.',
+                        'content' => 'You explain LodgeX room-match proposals for SL-02 and SL-03. Never assign a room. Never instruct anyone to write occupancy. AI recommends; people approve.',
                     ],
                     [
                         'role' => 'user',
@@ -204,7 +416,8 @@ class RoomInventoryIntelligenceAgent
     private function dataUsed(Reservation $reservation, Room $room, int $score): string
     {
         return implode('; ', [
-            'RoomAiMatchingService + RoomAvailabilityService',
+            'RoomAiMatchingService + RoomInventoryAvailabilityInspector',
+            'SL-02 + SL-03',
             "reservation #{$reservation->id}",
             "requested type {$reservation->room_type}",
             "company {$reservation->company}",
@@ -223,6 +436,7 @@ class RoomInventoryIntelligenceAgent
             'notes' => $notes,
             'context' => [
                 'capability_id' => $proposal->capability_id,
+                'bound_capabilities' => self::CAPABILITIES,
                 'reservation_id' => $proposal->payload['reservation_id'] ?? null,
                 'room_id' => $proposal->payload['room_id'] ?? null,
             ],

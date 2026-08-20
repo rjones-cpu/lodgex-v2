@@ -7,6 +7,7 @@ use App\Models\AiProposalAuditLog;
 use App\Models\Reservation;
 use App\Models\Room;
 use App\Models\User;
+use App\Services\Ai\RoomInventoryAvailabilityInspector;
 use App\Services\RoomUtilization\RoomAssignmentService;
 use Illuminate\Validation\ValidationException;
 
@@ -14,9 +15,10 @@ class RoomProposalApprovalService
 {
     public function __construct(
         private readonly RoomAssignmentService $assignmentService,
+        private readonly RoomInventoryAvailabilityInspector $inspector,
     ) {}
 
-    public function approve(AiProposal $proposal, User $user): Reservation
+    public function approve(AiProposal $proposal, User $user): ?Reservation
     {
         if ($proposal->agent !== RoomInventoryIntelligenceAgent::AGENT) {
             throw ValidationException::withMessages([
@@ -27,6 +29,18 @@ class RoomProposalApprovalService
         if (! $proposal->isPending()) {
             throw ValidationException::withMessages([
                 'proposal' => 'Only pending proposals can be approved.',
+            ]);
+        }
+
+        if ($proposal->action === 'flag_risk') {
+            $this->mark($proposal, $user, 'Approved', 'Human acknowledged conflict flag. No occupancy written.');
+
+            return null;
+        }
+
+        if ($proposal->action !== 'recommend_room') {
+            throw ValidationException::withMessages([
+                'proposal' => 'This proposal cannot be executed as an assignment.',
             ]);
         }
 
@@ -42,15 +56,15 @@ class RoomProposalApprovalService
         $reservation = Reservation::query()->with(['worker', 'room'])->findOrFail($reservationId);
         $room = Room::query()->with(['activeHold', 'activeMaintenanceHold'])->findOrFail($roomId);
 
+        if (! $this->inspector->isAvailable($room, $reservation)) {
+            throw ValidationException::withMessages([
+                'room' => 'This room is not actually available. AI will not write occupancy.',
+            ]);
+        }
+
         $reservation = $this->assignmentService->assign($reservation, $room, $user, method: 'manual');
 
-        $proposal->update([
-            'status' => 'Approved',
-            'approved_by' => $user->id,
-            'approved_at' => now(),
-        ]);
-
-        $this->log($proposal, 'approved', $user, 'Human approved room proposal; RoomAssignmentService::assign executed.');
+        $this->mark($proposal, $user, 'Approved', 'Human approved room proposal; RoomAssignmentService::assign executed.');
 
         return $reservation;
     }
@@ -63,16 +77,21 @@ class RoomProposalApprovalService
             ]);
         }
 
-        $proposal->update(['status' => 'Dismissed']);
-        $this->log($proposal, 'dismissed', $user, 'Human dismissed room proposal. No assignment written.');
+        $this->mark($proposal, $user, 'Dismissed', 'Human dismissed room proposal. No assignment written.');
     }
 
-    private function log(AiProposal $proposal, string $action, User $user, string $notes): void
+    private function mark(AiProposal $proposal, User $user, string $status, string $notes): void
     {
+        $proposal->update([
+            'status' => $status,
+            'approved_by' => $status === 'Approved' ? $user->id : $proposal->approved_by,
+            'approved_at' => $status === 'Approved' ? now() : $proposal->approved_at,
+        ]);
+
         AiProposalAuditLog::query()->create([
             'ai_proposal_id' => $proposal->id,
             'user_id' => $user->id,
-            'action' => $action,
+            'action' => strtolower($status) === 'approved' ? 'approved' : 'dismissed',
             'notes' => $notes,
             'context' => $proposal->payload ?? [],
         ]);

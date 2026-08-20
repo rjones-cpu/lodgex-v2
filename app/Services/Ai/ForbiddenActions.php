@@ -10,13 +10,21 @@ class ForbiddenActions
      * @var list<string>
      */
     public const BLOCKED = [
+        'assign',
         'assign_room',
+        'hold',
+        'hold_room',
+        'release',
+        'release_hold',
+        'release_room',
+        'check_in',
+        'check_in_guest',
+        'write_occupancy',
         'publish_schedule',
         'set_scorecard_grade',
         'change_scorecard_grade',
         'suppress_scorecard_grade',
         'send_formal_notice',
-        'release_room',
         'publish_assignment',
         'trigger_overflow',
         'send_contractor_notice',

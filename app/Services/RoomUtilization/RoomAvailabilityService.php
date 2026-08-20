@@ -19,11 +19,17 @@ class RoomAvailabilityService
             return false;
         }
 
-        if ($room->relationLoaded('activeMaintenanceHold') && $room->activeMaintenanceHold) {
+        if ($room->current_worker_id) {
             return false;
         }
 
-        if ($room->relationLoaded('activeHold') && $room->activeHold) {
+        $room->loadMissing(['activeMaintenanceHold', 'activeHold']);
+
+        if ($room->activeMaintenanceHold) {
+            return false;
+        }
+
+        if ($room->activeHold) {
             return false;
         }
 
