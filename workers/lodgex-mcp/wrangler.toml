@@ -1,0 +1,14 @@
+name = "lodgex-mcp"
+main = "src/index.ts"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# Set in the Cloudflare dashboard or `wrangler secret`. Do not commit hosts or tokens.
+# LODGEX_API_BASE = "https://your-lodgex-origin.example"
+# wrangler secret put LODGEX_MCP_TOKEN
+# wrangler secret put LODGEX_API_BASE
+
+[vars]
+# Leave empty in git. Configure per environment.
+# LODGEX_API_BASE = ""
