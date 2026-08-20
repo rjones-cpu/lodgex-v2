@@ -33,7 +33,7 @@ class AiOutputValidatorTest extends TestCase
     {
         $validator = app(AiOutputValidator::class);
 
-        foreach (['set_scorecard_grade', 'calculate_payroll', 'send_formal_notice', 'publish_schedule'] as $action) {
+        foreach (['set_scorecard_grade', 'calculate_payroll', 'send_formal_notice', 'publish_schedule', 'hold_room', 'check_in', 'write_occupancy'] as $action) {
             try {
                 $validator->validateProposalPayload(['action' => $action]);
                 $this->fail("Expected {$action} to be blocked.");

@@ -7,6 +7,9 @@ export default function AiShadowProposalPanel({
 }) {
     const mode = flags.mode || 'shadow';
     const enabled = flags.enabled !== false;
+    const capabilities = flags.capabilities?.length
+        ? flags.capabilities.join(' · ')
+        : 'SL-02 · SL-03';
     const pending = proposals.filter((p) => p.status === 'Pending');
 
     function approve(id) {
@@ -22,7 +25,7 @@ export default function AiShadowProposalPanel({
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <p className="text-[11px] font-black uppercase tracking-wide text-indigo-600">
-                        LodgeX AI · Shadow mode
+                        LodgeX AI · {mode} · class P · {capabilities}
                     </p>
                     <h3 className="text-base font-black text-slate-900">{title}</h3>
                     <p className="mt-1 text-xs font-semibold text-slate-600">
@@ -41,7 +44,8 @@ export default function AiShadowProposalPanel({
 
             {pending.length === 0 ? (
                 <p className="text-xs font-semibold text-slate-500">
-                    No pending room proposals. Use Propose room on an unassigned reservation to queue a Vacant Clean match.
+                    No pending room proposals or conflict flags. Use Propose room on an unassigned reservation
+                    to queue a Vacant Clean match.
                 </p>
             ) : (
                 <div className="space-y-3">
@@ -51,8 +55,13 @@ export default function AiShadowProposalPanel({
                                 <strong className="min-w-0 text-sm text-slate-900">{rec.issue}</strong>
                                 <div className="flex flex-wrap gap-2">
                                     <span className="rounded-lg bg-[#eaf2ff] px-2 py-1 text-xs font-black text-blue-700">
-                                        {rec.capabilityId}
+                                        {(rec.capabilityIds || [rec.capabilityId]).filter(Boolean).join(' · ')}
                                     </span>
+                                    {rec.action ? (
+                                        <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
+                                            {rec.action}
+                                        </span>
+                                    ) : null}
                                     <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-black capitalize text-amber-700">
                                         {rec.risk}
                                     </span>

@@ -5,11 +5,13 @@ namespace Tests\Feature\Ai;
 use App\Enums\RoomStatus;
 use App\Models\Reservation;
 use App\Models\Room;
+use App\Models\RoomHold;
 use App\Models\RoomInventoryLocation;
 use App\Models\User;
 use App\Models\UtilizationAuditLog;
 use App\Models\Worker;
 use App\Services\Ai\Agents\RoomInventoryIntelligenceAgent;
+use App\Services\Ai\AiOutputValidator;
 use App\Services\RoomUtilization\RoomAssignmentService;
 use Database\Seeders\RoomUtilizationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -100,6 +102,7 @@ class RoomInventoryIntelligenceTest extends TestCase
             'agent' => RoomInventoryIntelligenceAgent::AGENT,
             'action' => 'recommend_room',
             'status' => 'Pending',
+            'capability_id' => 'SL-02',
         ]);
 
         $this->assertSame(0, UtilizationAuditLog::query()->where('action', 'room_ai_assigned')->count());
@@ -148,6 +151,33 @@ class RoomInventoryIntelligenceTest extends TestCase
             'action' => 'room_assigned',
         ]);
         $this->assertSame(0, UtilizationAuditLog::query()->where('action', 'room_ai_assigned')->count());
+    }
+
+    public function test_approve_still_requires_a_person(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
+        $worker = Worker::create(['name' => 'Needs Human', 'company' => 'Acme']);
+        $reservation = Reservation::create([
+            'worker_id' => $worker->id,
+            'company' => 'Acme',
+            'arrival_date' => now()->toDateString(),
+            'departure_date' => now()->addDays(2)->toDateString(),
+            'status' => 'Arrival',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Pending',
+            'room_type' => 'Executive',
+        ]);
+        $this->makeInventoryRoom($user, ['number' => '501', 'room_type' => 'Executive']);
+        $proposal = app(RoomInventoryIntelligenceAgent::class)->proposeForReservation($reservation, $user);
+
+        auth()->logout();
+
+        $this->post(route('ai.proposals.approve', $proposal))
+            ->assertRedirect(route('login'));
+
+        $this->assertNull($reservation->fresh()->room_id);
+        $this->assertSame('Pending', $proposal->fresh()->status);
     }
 
     public function test_dismiss_does_not_assign(): void
@@ -208,6 +238,96 @@ class RoomInventoryIntelligenceTest extends TestCase
                 ->has('aiProposals')
                 ->where('aiFlags.mode', 'shadow')
                 ->where('aiFlags.shadow', true)
+                ->where('aiFlags.capabilities', ['SL-02', 'SL-03'])
             );
+    }
+
+    public function test_vacant_dirty_room_is_not_proposed(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
+
+        $worker = Worker::create(['name' => 'Dirty Guest', 'company' => 'Acme']);
+        $reservation = Reservation::create([
+            'worker_id' => $worker->id,
+            'company' => 'Acme',
+            'arrival_date' => now()->toDateString(),
+            'departure_date' => now()->addDays(2)->toDateString(),
+            'status' => 'Arrival',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Pending',
+            'room_type' => 'Executive',
+        ]);
+        $this->makeInventoryRoom($user, [
+            'number' => '301',
+            'room_type' => 'Executive',
+            'status' => RoomStatus::VacantDirty->value,
+        ]);
+
+        $this->expectException(ValidationException::class);
+        app(RoomInventoryIntelligenceAgent::class)->proposeForReservation($reservation, $user);
+    }
+
+    public function test_scan_persists_conflict_flags_without_occupancy_write(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
+
+        $room = $this->makeInventoryRoom($user, ['number' => '401']);
+        RoomHold::create([
+            'room_id' => $room->id,
+            'reason' => 'Hold vs vacant',
+            'is_active' => true,
+        ]);
+
+        $flags = app(RoomInventoryIntelligenceAgent::class)->scanConflicts($user);
+
+        $this->assertTrue($flags->contains(fn ($proposal) => $proposal->action === 'flag_risk'));
+        $this->assertNull($room->fresh()->current_worker_id);
+        $this->assertSame(RoomStatus::VacantClean->value, $room->fresh()->status);
+        $this->assertDatabaseHas('ai_proposals', [
+            'agent' => RoomInventoryIntelligenceAgent::AGENT,
+            'action' => 'flag_risk',
+            'capability_id' => 'SL-02',
+            'status' => 'Pending',
+        ]);
+    }
+
+    public function test_approving_a_conflict_flag_does_not_assign(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
+
+        $room = $this->makeInventoryRoom($user, ['number' => '402']);
+        RoomHold::create([
+            'room_id' => $room->id,
+            'reason' => 'Hold',
+            'is_active' => true,
+        ]);
+
+        $proposal = app(RoomInventoryIntelligenceAgent::class)->scanConflicts($user)->first();
+        $this->assertNotNull($proposal);
+
+        $this->post(route('ai.proposals.approve', $proposal))
+            ->assertRedirect()
+            ->assertSessionHas('toast');
+
+        $this->assertSame('Approved', $proposal->fresh()->status);
+        $this->assertNull($room->fresh()->current_worker_id);
+        $this->assertSame(0, UtilizationAuditLog::query()->where('action', 'room_assigned')->count());
+    }
+
+    public function test_forbidden_actions_cannot_be_emitted_as_proposals(): void
+    {
+        $validator = app(AiOutputValidator::class);
+
+        foreach (['assign_room', 'hold_room', 'check_in', 'write_occupancy', 'release_room'] as $action) {
+            try {
+                $validator->validateProposalPayload(['action' => $action]);
+                $this->fail("Expected {$action} to be blocked.");
+            } catch (ValidationException) {
+                $this->assertTrue(true);
+            }
+        }
     }
 }

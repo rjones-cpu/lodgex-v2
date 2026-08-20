@@ -39,7 +39,7 @@ class MockProviderAndRunnerTest extends TestCase
     {
         $result = app(AiRunner::class)->complete(new AiCompletionRequest(
             input: [['role' => 'user', 'content' => 'explain']],
-            capabilityId: 'SL-01',
+            capabilityId: 'SL-02',
             agent: 'room_inventory_intelligence',
         ));
 
@@ -47,7 +47,7 @@ class MockProviderAndRunnerTest extends TestCase
         $this->assertDatabaseHas('ai_audit_logs', [
             'action' => 'provider_complete',
             'provider' => 'mock',
-            'capability_id' => 'SL-01',
+            'capability_id' => 'SL-02',
         ]);
     }
 }

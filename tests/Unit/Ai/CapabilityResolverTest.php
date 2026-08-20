@@ -14,10 +14,15 @@ class CapabilityResolverTest extends TestCase
 
         $this->assertTrue($resolver->exists('CH-03'));
         $this->assertTrue($resolver->exists('SL-01'));
+        $this->assertTrue($resolver->exists('SL-02'));
+        $this->assertTrue($resolver->exists('SL-03'));
         $this->assertTrue($resolver->exists('MP-09'));
         $this->assertFalse($resolver->exists('MP-10'));
         $this->assertFalse($resolver->exists('CH-12'));
         $this->assertFalse($resolver->exists('SL-00'));
+        $this->assertSame('Executive dashboard', $resolver->catalog()['SL-01']['title']);
+        $this->assertSame('Reservations and Occupancy', $resolver->catalog()['SL-02']['title']);
+        $this->assertSame('Front Desk', $resolver->catalog()['SL-03']['title']);
     }
 
     public function test_products_are_standalone(): void
@@ -29,7 +34,10 @@ class CapabilityResolverTest extends TestCase
         $this->assertTrue($resolver->isAvailable('SL-01'));
         $this->assertTrue($resolver->isAvailable('CH-03'));
         $this->assertTrue($resolver->isAvailable('MP-09'));
-        $this->assertContains('SL-02', $resolver->optionalConnections('SL-01'));
+        $this->assertSame(['SL-02', 'SL-03'], $resolver->capabilitiesForAgent('room_inventory_intelligence'));
+        $this->assertSame('SL-02', $resolver->primaryCapabilityForAgent('room_inventory_intelligence'));
+        $this->assertContains('SL-03', $resolver->optionalConnections('SL-02'));
+        $this->assertFalse($resolver->hasOptionalConnection('SL-02', 'CH-03'));
         $this->assertFalse($resolver->hasOptionalConnection('SL-01', 'MP-09'));
     }
 

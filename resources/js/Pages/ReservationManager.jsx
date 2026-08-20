@@ -1,5 +1,6 @@
 import AppLayout from '../Layouts/AppLayout';
 import { AppPageBody, AppPageHeader, AppPageShell } from '../Components/AppPageShell';
+import AiShadowProposalPanel from '../Components/Ai/AiShadowProposalPanel';
 import {
     AiAssistantPanel,
     ApprovalWorkflowPanel,
@@ -52,6 +53,8 @@ export default function ReservationManager({
     lastUpdated = '',
     siteName = 'Boon Lodge • Main Site',
     selectedDate = 'May 21, 2025',
+    aiProposals = [],
+    aiFlags = {},
 }) {
     const { auth } = usePage().props;
     const userName = auth?.user?.name || 'John Doe';
@@ -125,6 +128,12 @@ export default function ReservationManager({
                         {lastUpdated && (
                             <p className="mb-4 text-xs font-bold text-lx-ink-soft">Last updated: {lastUpdated}</p>
                         )}
+
+                        <AiShadowProposalPanel
+                            proposals={aiProposals}
+                            flags={aiFlags}
+                            title="Room Inventory Intelligence"
+                        />
 
                         <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
                             {primaryMetrics.map((m) => (

@@ -5,8 +5,8 @@
 ```
 Controller / Agent
     → CapabilityResolver (official IDs only; products standalone)
-    → AiFeatureFlags (default mode=shadow)
-    → AiRunner → AiProviderRegistry → MockProvider | XaiProvider
+    → AiFeatureFlags (default mode=shadow; off | shadow | supervised)
+    → AiRunner → LangSmithTracer (optional) → AiProviderRegistry → MockProvider | XaiProvider
     → AiOutputValidator (blocks forbidden actions)
     → AiAuditLogger (no secrets)
     → AiProposal (pending) → human Approve/Dismiss
@@ -16,6 +16,8 @@ Controller / Agent
 Config: `config/ai.php`  
 Env: see `.env.example` (`AI_MODE=shadow`, `AI_PROVIDER=xai`, `XAI_API_KEY=`)  
 Tests force `AI_PROVIDER=mock` in `phpunit.xml`.
+
+Wave 1 agent: Room Inventory Intelligence on **SL-02 + SL-03**, class P. See [ROOM_INVENTORY_INTELLIGENCE_AGENT.md](./ROOM_INVENTORY_INTELLIGENCE_AGENT.md).
 
 ## Turn the flag on
 
@@ -27,9 +29,9 @@ Shadow is already the default (`AI_ENABLED=true`, `AI_MODE=shadow`).
 4. Optional: `AI_DEFAULT_MODEL=grok-4.6` (official slugs only).
 5. Optional: `AI_ROOM_INVENTORY_AGENT=true` (default true).
 6. Run `php artisan migrate` for `ai_proposals`, `ai_proposal_audit_logs`, `ai_audit_logs`.
-7. Open `/dashboard` or `/room-inventory`. Propose a room, then Approve (human) or Dismiss.
+7. Open `/dashboard`, `/room-inventory`, or `/modules/reservations`. Propose a room, then Approve (human) or Dismiss.
 
-`AI_MODE=off` disables generation. `AI_MODE=propose` is the same write policy as shadow: AI still cannot assign; humans still use `RoomAssignmentService::assign`.
+`AI_MODE=off` disables generation. `AI_MODE=supervised` (Wave 0 alias: `propose`) is the same write policy as shadow: AI still cannot assign; humans still use `RoomAssignmentService::assign`.
 
 ## Providers
 
@@ -38,18 +40,37 @@ Shadow is already the default (`AI_ENABLED=true`, `AI_MODE=shadow`).
 - Default model: `grok-4.6`. Allowed: `grok-4.6`, `grok-4.5`, `grok-4.3`, `grok-build-0.1`, and `grok-4.20-*`
 - Mock provider: no network; used in tests and when no key is configured
 
+## LangSmith
+
+LangSmith is the agent-management / tracing system. There is no project named `lodgex`. Wave 1 traces to **`lodgex-room-inventory-intelligence`**.
+
+`App\Services\Ai\LangSmithTracer` is a small HTTP wrapper around `AiRunner` (provider-neutral, no PHP LangSmith SDK).
+
+| Env | Purpose |
+| --- | --- |
+| `LANGSMITH_API_KEY` or `LANGCHAIN_API_KEY` | Enable tracing. Missing = skip. |
+| `LANGSMITH_PROJECT` or `LANGCHAIN_PROJECT` | Default project (this agent overrides to `lodgex-room-inventory-intelligence`) |
+| `LANGSMITH_ENDPOINT` or `LANGCHAIN_ENDPOINT` | Default `https://api.smith.langchain.com` |
+| `LANGSMITH_TRACING` or `LANGCHAIN_TRACING_V2` | Set false to disable even when a key is present |
+
+Never required at runtime. Fail-soft: tracing errors are swallowed.
+
+## Cloudflare MCP
+
+Worker source lives in `workers/lodgex-mcp/` (no separate repo). Read-only tools call `/api/ai/room-inventory/*` with `LODGEX_MCP_TOKEN`. Set `LODGEX_API_BASE` on the Worker. Do not deploy from the app PR unless wrangler is already set up and safe.
+
 ## Capability resolver
 
 `App\Services\Ai\CapabilityResolver`
 
-- Registers only official IDs.
+- Registers only official IDs (Master Agent locked map).
 - Each product (`crew_hub`, `smart_lodge`, `major_projects`) can run standalone.
 - `optional_connections` in config are wiring hints, never hard dependencies.
-- Titles in config are observational (this repo had no official catalog). Do not treat them as a new product list.
+- Titles come from the Master Agent map. SL-01 is Lodge Executive Brief, not this agent.
 
 ## Forbidden actions
 
-`App\Services\Ai\ForbiddenActions` + `AiOutputValidator` reject assign/publish/scorecard-write/notice/overflow/payroll/auto-execute payloads even if a model emits them.
+`App\Services\Ai\ForbiddenActions` + `AiOutputValidator` reject assign/hold/release/check-in/write-occupancy/publish/scorecard-write/notice/overflow/payroll/auto-execute payloads even if a model emits them.
 
 ## Overtime
 
@@ -66,4 +87,4 @@ This repo has no `users.role` column. Do not invent a fourth role system.
 
 ## Scorecard
 
-`App\Services\Scorecard\ScorecardGradeCalculator::grade()` returns the lowest applicable component. AI may explain that result only. There is no scorecard UI in this repo yet.
+`App\Services\Scorecard\ScorecardGradeCalculator::grade()` returns the lowest applicable component. AI may explain that result only. Official ID is **CH-11** (Service Rating). There is no scorecard UI in this repo yet.
