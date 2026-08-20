@@ -15,7 +15,7 @@ This PR does **not** deploy. Use wrangler when you are ready to update the exist
 | `list_rooms` | Live `rooms_old` inventory rows |
 | `get_occupancy` | Occupancy summary + reservations |
 | `list_reservations` | Reservation list |
-| `list_availability` | Vacant Clean and not held / blocked / assigned / restricted / maintenance |
+| `list_availability` | Stay-night ledger, then Vacant Clean fitness. Vacant Clean is **not** availability. |
 | `create_proposal` | Persist an `AiProposal` (not an assignment) |
 | `assign` / `hold` / `release` / `check_in` | **Refused** |
 

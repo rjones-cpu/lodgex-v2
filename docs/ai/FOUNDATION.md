@@ -17,7 +17,7 @@ Config: `config/ai.php`
 Env: see `.env.example` (`AI_MODE=shadow`, `AI_PROVIDER=xai`, `XAI_API_KEY=`)  
 Tests force `AI_PROVIDER=mock` in `phpunit.xml`.
 
-Wave 1 agent: Room Inventory Intelligence on **SL-02 + SL-03**, class P. See [ROOM_INVENTORY_INTELLIGENCE_AGENT.md](./ROOM_INVENTORY_INTELLIGENCE_AGENT.md).
+Wave 1 agent: Room Inventory Intelligence on **SL-02 + SL-03**, class P. Training: [RESERVATION_AGENT_TRAINING.md](./RESERVATION_AGENT_TRAINING.md). Agent: [ROOM_INVENTORY_INTELLIGENCE_AGENT.md](./ROOM_INVENTORY_INTELLIGENCE_AGENT.md).
 
 ## Turn the flag on
 
@@ -70,7 +70,7 @@ Worker source lives in `workers/lodgex-mcp/` (no separate repo). Read-only tools
 
 ## Forbidden actions
 
-`App\Services\Ai\ForbiddenActions` + `AiOutputValidator` reject assign/hold/release/check-in/write-occupancy/publish/scorecard-write/notice/overflow/payroll/auto-execute payloads even if a model emits them.
+`App\Services\Ai\ForbiddenActions` + `AiOutputValidator` reject assign/hold/release/check-in/write-occupancy/publish/scorecard-write/notice/overflow/payroll/auto-execute/overbook/displace/life-safety/No-Sleep-release payloads even if a model emits them. Proposal `decision` cannot be execute.
 
 ## Overtime
 

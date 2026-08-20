@@ -4,6 +4,7 @@ Foundation for federated AI across Crew Hub, Smart Lodge, and Major Projects.
 
 - Assessment of this repo: [AI_REPOSITORY_ASSESSMENT.md](./AI_REPOSITORY_ASSESSMENT.md)
 - How the runtime works: [FOUNDATION.md](./FOUNDATION.md)
+- Reservation agent training (official standard v1.0): [RESERVATION_AGENT_TRAINING.md](./RESERVATION_AGENT_TRAINING.md)
 - Room Inventory agent (SL-02 + SL-03): [ROOM_INVENTORY_INTELLIGENCE_AGENT.md](./ROOM_INVENTORY_INTELLIGENCE_AGENT.md)
 - ADRs in this folder document decisions actually made in lodgex-v2.
 

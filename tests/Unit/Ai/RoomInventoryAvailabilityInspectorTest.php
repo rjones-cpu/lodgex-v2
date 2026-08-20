@@ -146,4 +146,209 @@ class RoomInventoryAvailabilityInspectorTest extends TestCase
             app(RoomInventoryAvailabilityInspector::class)->unavailableReasons($room, $candidate),
         );
     }
+
+    public function test_retained_but_clean_is_unavailable_and_still_fit(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $room = $this->inventoryRoom($user);
+        $worker = Worker::create(['name' => 'Offsite', 'company' => 'Acme']);
+        Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => $worker->id,
+            'room_id' => $room->id,
+            'company' => 'Acme',
+            'arrival_date' => now()->subDays(2)->toDateString(),
+            'departure_date' => now()->addDays(5)->toDateString(),
+            'status' => 'On-Hold',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Allotted',
+            'room_type' => 'Executive',
+        ]);
+        $room->load('reservations');
+
+        $inspector = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertContains('time_out_retained', $inspector->unavailableReasons($room));
+        $this->assertTrue($inspector->isFitForCheckIn($room));
+        $this->assertFalse($inspector->isAvailable($room));
+    }
+
+    public function test_unassigned_confirmed_deducts_from_category(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $room = $this->inventoryRoom($user);
+        $workerA = Worker::create(['name' => 'Confirmed A', 'company' => 'Acme']);
+        $workerB = Worker::create(['name' => 'Confirmed B', 'company' => 'Acme']);
+
+        $committed = Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => $workerA->id,
+            'room_id' => null,
+            'company' => 'Acme',
+            'arrival_date' => '2026-08-20',
+            'departure_date' => '2026-08-27',
+            'status' => 'Arrival',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Allotted',
+            'room_type' => 'Executive',
+        ]);
+        $other = Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => $workerB->id,
+            'room_id' => null,
+            'company' => 'Acme',
+            'arrival_date' => '2026-08-20',
+            'departure_date' => '2026-08-27',
+            'status' => 'Arrival',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Allotted',
+            'room_type' => 'Executive',
+        ]);
+
+        $inspector = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertTrue($inspector->deductsInventory($committed));
+        $this->assertTrue($inspector->isAvailable($room, $committed));
+        $this->assertContains('category_committed', $inspector->unavailableReasons($room, $other));
+    }
+
+    public function test_dirty_confirmed_still_committed(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $dirty = $this->inventoryRoom($user, [
+            'number' => '102',
+            'status' => RoomStatus::VacantDirty->value,
+        ]);
+        $worker = Worker::create(['name' => 'Dirty Stay', 'company' => 'Acme']);
+        $occupying = Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => $worker->id,
+            'room_id' => $dirty->id,
+            'company' => 'Acme',
+            'arrival_date' => '2026-08-20',
+            'departure_date' => '2026-08-27',
+            'status' => 'Arrival',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Allotted',
+            'room_type' => 'Executive',
+        ]);
+        $dirty->load('reservations');
+
+        $inspector = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertFalse($inspector->isFitForCheckIn($dirty));
+        $this->assertTrue($inspector->deductsInventory($occupying));
+        $other = Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => Worker::create(['name' => 'Other', 'company' => 'Acme'])->id,
+            'room_id' => null,
+            'company' => 'Acme',
+            'arrival_date' => '2026-08-22',
+            'departure_date' => '2026-08-25',
+            'status' => 'Arrival',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Pending',
+            'room_type' => 'Executive',
+        ]);
+        $this->assertContains('reservation_overlap', $inspector->ledgerReasons($dirty, $other));
+    }
+
+    public function test_fitness_gate_is_after_inventory_for_uncommitted_dirty(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $room = $this->inventoryRoom($user, ['status' => RoomStatus::VacantDirty->value]);
+
+        $inspector = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertTrue($inspector->isAssignableOnLedger($room));
+        $this->assertFalse($inspector->isFitForCheckIn($room));
+        $this->assertContains('not_fit_for_check_in', $inspector->fitnessReasons($room));
+        $this->assertFalse($inspector->isAvailable($room));
+    }
+
+    public function test_no_sleep_does_not_release_inventory(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $room = $this->inventoryRoom($user);
+        $worker = Worker::create(['name' => 'No Sleep', 'company' => 'Acme']);
+        $reservation = Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => $worker->id,
+            'room_id' => $room->id,
+            'company' => 'Acme',
+            'arrival_date' => now()->toDateString(),
+            'departure_date' => now()->addDays(4)->toDateString(),
+            'status' => 'No-Sleep',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Allotted',
+            'room_type' => 'Executive',
+        ]);
+        $room->load('reservations');
+
+        $inspector = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertTrue($inspector->deductsInventory($reservation));
+        $this->assertTrue($inspector->occupiesInventory($reservation));
+        $this->assertContains('no_sleep_must_not_release', $inspector->unavailableReasons($room));
+    }
+
+    public function test_time_out_over_seven_nights_is_human_only(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $room = $this->inventoryRoom($user);
+        $worker = Worker::create(['name' => 'Long Hold', 'company' => 'Acme']);
+        $stay = Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => $worker->id,
+            'room_id' => $room->id,
+            'company' => 'Acme',
+            'arrival_date' => now()->subDays(10)->toDateString(),
+            'departure_date' => now()->addDays(2)->toDateString(),
+            'status' => 'On-Hold',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Allotted',
+            'room_type' => 'Executive',
+        ]);
+        RoomHold::create([
+            'room_id' => $room->id,
+            'user_id' => $user->id,
+            'reason' => 'Time-Out',
+            'hold_started_at' => now()->subDays(8),
+            'policy_days' => 7,
+            'over_policy' => true,
+            'is_active' => true,
+        ]);
+        $room->load(['activeHold', 'reservations']);
+
+        $inspector = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertTrue($inspector->timeOutExceedsRetention($room, $stay));
+        $this->assertContains('time_out_over_seven_nights', $inspector->unavailableReasons($room, $stay));
+    }
+
+    public function test_pending_and_waitlisted_do_not_deduct(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $worker = Worker::create(['name' => 'Pending', 'company' => 'Acme']);
+        $pending = Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => $worker->id,
+            'company' => 'Acme',
+            'arrival_date' => '2026-08-20',
+            'departure_date' => '2026-08-27',
+            'status' => 'Arrival',
+            'approval_status' => 'Pending',
+            'allotment_status' => 'Pending',
+            'room_type' => 'Executive',
+        ]);
+        $waitlisted = Reservation::create([
+            'user_id' => $user->id,
+            'worker_id' => $worker->id,
+            'company' => 'Acme',
+            'arrival_date' => '2026-08-20',
+            'departure_date' => '2026-08-27',
+            'status' => 'Waitlisted',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Pending',
+            'room_type' => 'Executive',
+        ]);
+
+        $inspector = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertFalse($inspector->deductsInventory($pending));
+        $this->assertFalse($inspector->deductsInventory($waitlisted));
+    }
 }

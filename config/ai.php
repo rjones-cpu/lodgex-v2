@@ -80,6 +80,15 @@ return [
             'class' => 'P',
             'mode' => env('AI_ROOM_INVENTORY_MODE', null),
             'langsmith_project' => 'lodgex-room-inventory-intelligence',
+            // 11.3: auto-assign only when config authorizes it. Wave 1 OFF.
+            'auto_assign' => false,
+            // 6.2: positive overbooking disabled; never create or increase a limit.
+            'positive_overbooking' => false,
+            // Pending/option holds do not deduct unless this is explicitly on.
+            'pending_option_holds_deduct' => false,
+            // Time-Out / Room Retained default; beyond this is human-only.
+            'time_out_retention_nights' => 7,
+            'rule_version' => 'reservation-rules-1.0',
         ],
     ],
 

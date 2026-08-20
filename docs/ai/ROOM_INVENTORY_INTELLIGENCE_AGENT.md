@@ -2,6 +2,8 @@
 
 Wave 1 in-product agent. Class **P** (proposal / shadow) only.
 
+Training: **[RESERVATION_AGENT_TRAINING.md](./RESERVATION_AGENT_TRAINING.md)** — LodgeX Enterprise Standard — Reservation Rules, Definitions and AI Agent Training Standard v1.0 (20 Aug 2026). Section **16.1** is the system instruction on this agent (`ReservationTrainingStandard::SYSTEM_INSTRUCTION_16_1`).
+
 Locked modules (Master Agent map, Ralph Jones approved 18 Aug 2026):
 
 - **SL-02** Reservations and Occupancy (primary)
@@ -14,13 +16,15 @@ Optional connection: SL-02 ↔ SL-03 only. Crew Hub and Major Projects stay behi
 ## What it does
 
 - Reads live `rooms_old` + reservation + hold + inventory OOS state
-- Availability rule: **Vacant Clean** and not held, blocked, assigned, restricted, or on maintenance
+- **Availability** is a full-stay room-night ledger (standard 6.2). A positive total across a date range is not enough if any night is unavailable. Dashboard totals are not the transactional check.
+- **Fitness** (after ledger): `Vacant Clean` in lodgex-v2, and not OOO / OOS / administratively held. Vacant Clean is **not** availability. Retained rooms can look clean and stay committed.
 - Creates `ai_proposals` rows:
-  - `recommend_room` — proposed assignment
-  - `flag_risk` — rooms that are not actually available, plus conflicts (double book, held vs vacant, assigned vs dirty, reservation vs inventory)
-- Optionally asks the AI runner for an explanation (mock in tests; xAI when configured)
+  - `recommend_room` — proposed assignment (`decision`: **approval required**, never execute)
+  - `flag_risk` — ledger/fitness conflicts (double book, retained vs clean, assigned vs dirty, No Sleep release, 7-night Time-Out, OOO, unassigned confirmed, Dirty confirmed still committed)
+- Optionally asks the AI runner for an explanation using the 16.1 instruction (mock in tests; xAI when configured)
 - Never calls `RoomAssignmentService::assign` except from the **human** approve path
-- Never holds, releases, checks in, or writes occupancy from the agent itself
+- Never holds, releases, checks in, notifies, or writes occupancy from the agent itself
+- Wave 1 auto-assign config is **OFF** (11.3)
 
 ## What a person does
 
@@ -54,7 +58,7 @@ See `.env.example` and [FOUNDATION.md](./FOUNDATION.md).
 
 Worker source: `workers/lodgex-mcp/`. Live Worker name: `lodgex-mcp` (ping + whoami today).
 
-Read-only tools: list rooms, occupancy/reservations, Vacant Clean availability, create a proposal record. Assign / hold / release / check-in are refused.
+Read-only tools: list rooms, occupancy/reservations, stay-ledger availability + fitness, create a proposal record. Assign / hold / release / check-in are refused.
 
 Laravel JSON API: `/api/ai/room-inventory/*` authenticated with `LODGEX_MCP_TOKEN`. Worker env `LODGEX_API_BASE` is the LodgeX origin — do not hard-code a staging host.
 

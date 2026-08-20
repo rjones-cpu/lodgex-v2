@@ -56,7 +56,8 @@ class RoomInventoryMcpController extends Controller
 
         return response()->json([
             'ok' => true,
-            'rule' => 'Vacant Clean and not held, blocked, assigned, restricted, or on maintenance',
+            'rule' => 'Full-stay room-night ledger, then Vacant Clean fitness. Vacant Clean is not availability.',
+            'standard' => \App\Services\Ai\ReservationTrainingStandard::citation(),
             'rooms' => $this->agent->listAvailability($reservationId, (int) $request->integer('limit', 200)),
         ]);
     }

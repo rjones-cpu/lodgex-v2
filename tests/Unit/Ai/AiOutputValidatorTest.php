@@ -33,7 +33,7 @@ class AiOutputValidatorTest extends TestCase
     {
         $validator = app(AiOutputValidator::class);
 
-        foreach (['set_scorecard_grade', 'calculate_payroll', 'send_formal_notice', 'publish_schedule', 'hold_room', 'check_in', 'write_occupancy'] as $action) {
+        foreach (['set_scorecard_grade', 'calculate_payroll', 'send_formal_notice', 'publish_schedule', 'hold_room', 'check_in', 'write_occupancy', 'overbook', 'release_on_no_sleep', 'displace_confirmed_resident', 'bypass_life_safety', 'mark_no_show', 'in_house_move', 'auto_assign'] as $action) {
             try {
                 $validator->validateProposalPayload(['action' => $action]);
                 $this->fail("Expected {$action} to be blocked.");
@@ -61,5 +61,25 @@ class AiOutputValidatorTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $validator->assertModelAllowed('gpt-5');
+    }
+
+    public function test_blocks_execute_decision(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        app(AiOutputValidator::class)->validateProposalPayload([
+            'action' => 'recommend_room',
+            'decision' => 'execute',
+        ]);
+    }
+
+    public function test_allows_wave_one_read_actions(): void
+    {
+        $validator = app(AiOutputValidator::class);
+
+        foreach (['explain', 'validate', 'draft_for_review', 'monitor', 'flag_risk'] as $action) {
+            $payload = $validator->validateProposalPayload(['action' => $action]);
+            $this->assertSame($action, $payload['action']);
+        }
     }
 }

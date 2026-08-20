@@ -45,7 +45,7 @@ export default function AiShadowProposalPanel({
             {pending.length === 0 ? (
                 <p className="text-xs font-semibold text-slate-500">
                     No pending room proposals or conflict flags. Use Propose room on an unassigned reservation
-                    to queue a Vacant Clean match.
+                    to queue a recommendation (ledger + fitness). Vacant Clean is not availability.
                 </p>
             ) : (
                 <div className="space-y-3">

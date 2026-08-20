@@ -180,6 +180,73 @@ class RoomInventoryIntelligenceTest extends TestCase
         $this->assertSame('Pending', $proposal->fresh()->status);
     }
 
+    public function test_recommend_payload_has_seven_state_and_never_execute(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
+        $worker = Worker::create(['name' => 'Ledger Guest', 'company' => 'Acme']);
+        $reservation = Reservation::create([
+            'worker_id' => $worker->id,
+            'company' => 'Acme',
+            'arrival_date' => now()->toDateString(),
+            'departure_date' => now()->addDays(3)->toDateString(),
+            'status' => 'Arrival',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Pending',
+            'room_type' => 'Executive',
+        ]);
+        $this->makeInventoryRoom($user, ['number' => '601', 'room_type' => 'Executive']);
+
+        $proposal = app(RoomInventoryIntelligenceAgent::class)->proposeForReservation($reservation, $user);
+        $payload = $proposal->payload;
+
+        $this->assertSame('approval required', $payload['decision']);
+        $this->assertFalse($payload['requested_change']['execute']);
+        $this->assertSame(
+            ['approval', 'stay', 'assignment', 'inventory_commitment', 'housekeeping', 'modification_workflow', 'exception_alerts'],
+            array_keys($payload['current_state']),
+        );
+        $this->assertSame('unassigned', $payload['current_state']['assignment']);
+        $this->assertSame('unassigned_confirmed_committed', $payload['current_state']['inventory_commitment']);
+        $this->assertNotEmpty($payload['candidates']);
+        $this->assertSame('reservation-rules-1.0', $payload['audit']['rule_version']);
+        $this->assertFalse($payload['authority']['auto_assign']);
+        $this->assertFalse($payload['constraints']['accessibility_inferred']);
+    }
+
+    public function test_retained_clean_room_is_not_proposed(): void
+    {
+        $user = User::factory()->create(['camp_id' => 1]);
+        $this->actingAs($user);
+        $room = $this->makeInventoryRoom($user, ['number' => '701', 'room_type' => 'Executive']);
+        $heldWorker = Worker::create(['name' => 'Retained', 'company' => 'Acme']);
+        Reservation::create([
+            'worker_id' => $heldWorker->id,
+            'room_id' => $room->id,
+            'company' => 'Acme',
+            'arrival_date' => now()->toDateString(),
+            'departure_date' => now()->addDays(5)->toDateString(),
+            'status' => 'On-Hold',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Allotted',
+            'room_type' => 'Executive',
+        ]);
+        $guest = Worker::create(['name' => 'New Guest', 'company' => 'Acme']);
+        $reservation = Reservation::create([
+            'worker_id' => $guest->id,
+            'company' => 'Acme',
+            'arrival_date' => now()->toDateString(),
+            'departure_date' => now()->addDays(3)->toDateString(),
+            'status' => 'Arrival',
+            'approval_status' => 'Approved',
+            'allotment_status' => 'Pending',
+            'room_type' => 'Executive',
+        ]);
+
+        $this->expectException(ValidationException::class);
+        app(RoomInventoryIntelligenceAgent::class)->proposeForReservation($reservation, $user);
+    }
+
     public function test_dismiss_does_not_assign(): void
     {
         $user = User::factory()->create(['camp_id' => 1]);

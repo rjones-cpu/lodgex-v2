@@ -42,7 +42,7 @@ const TOOLS = [
   },
   {
     name: "list_rooms",
-    description: "List live Room Inventory rooms (rooms_old) with Vacant Clean availability flags. Read-only.",
+    description: "List live Room Inventory rooms (rooms_old) with ledger and fitness flags. Vacant Clean is fitness, not availability. Read-only.",
     inputSchema: {
       type: "object",
       properties: { limit: { type: "number", description: "Max rows (default 200)" } },
@@ -67,7 +67,7 @@ const TOOLS = [
   {
     name: "list_availability",
     description:
-      "List rooms that pass the Vacant Clean rule: Vacant Clean and not held, blocked, assigned, restricted, or on maintenance.",
+      "List rooms that pass the stay-night ledger and Vacant Clean check-in fitness. Vacant Clean is not availability. Dashboard totals are not the transactional check.",
     inputSchema: {
       type: "object",
       properties: {
