@@ -33,7 +33,7 @@ class AiOutputValidatorTest extends TestCase
     {
         $validator = app(AiOutputValidator::class);
 
-        foreach (['set_scorecard_grade', 'calculate_payroll', 'send_formal_notice', 'publish_schedule', 'hold_room', 'check_in', 'write_occupancy', 'overbook', 'release_on_no_sleep', 'displace_confirmed_resident', 'bypass_life_safety', 'mark_no_show', 'in_house_move', 'auto_assign'] as $action) {
+        foreach (['set_scorecard_grade', 'calculate_payroll', 'send_formal_notice', 'publish_schedule', 'hold_room', 'check_in', 'write_occupancy', 'overbook', 'release_on_no_sleep', 'displace_confirmed_resident', 'bypass_life_safety', 'mark_no_show', 'in_house_move', 'auto_assign', 'publish_hk_board', 'approve_overtime', 'mark_ready'] as $action) {
             try {
                 $validator->validateProposalPayload(['action' => $action]);
                 $this->fail("Expected {$action} to be blocked.");
@@ -77,7 +77,7 @@ class AiOutputValidatorTest extends TestCase
     {
         $validator = app(AiOutputValidator::class);
 
-        foreach (['explain', 'validate', 'draft_for_review', 'monitor', 'flag_risk'] as $action) {
+        foreach (['explain', 'validate', 'draft_for_review', 'monitor', 'flag_risk', 'draft_clean_list', 'labour_forecast'] as $action) {
             $payload = $validator->validateProposalPayload(['action' => $action]);
             $this->assertSame($action, $payload['action']);
         }

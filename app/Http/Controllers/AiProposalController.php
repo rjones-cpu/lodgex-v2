@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AiProposal;
+use App\Services\Ai\Agents\HousekeepingLabourProposalApprovalService;
 use App\Services\Ai\Agents\RoomProposalApprovalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,13 +12,25 @@ use Illuminate\Validation\ValidationException;
 class AiProposalController extends Controller
 {
     public function __construct(
-        private readonly RoomProposalApprovalService $approvals,
+        private readonly RoomProposalApprovalService $roomApprovals,
+        private readonly HousekeepingLabourProposalApprovalService $housekeepingApprovals,
     ) {}
 
     public function approve(Request $request, AiProposal $proposal): RedirectResponse
     {
+        $user = $request->user();
+
         try {
-            $reservation = $this->approvals->approve($proposal, $request->user());
+            if ($this->housekeepingApprovals->handles($proposal)) {
+                $this->housekeepingApprovals->approve($proposal, $user);
+
+                return redirect()->back()->with(
+                    'toast',
+                    'Draft labelled. No HK board published, no overtime authorized, no room status written.',
+                );
+            }
+
+            $reservation = $this->roomApprovals->approve($proposal, $user);
         } catch (ValidationException $exception) {
             return redirect()->back()->withErrors($exception->errors());
         }
@@ -38,8 +51,16 @@ class AiProposalController extends Controller
 
     public function dismiss(Request $request, AiProposal $proposal): RedirectResponse
     {
+        $user = $request->user();
+
         try {
-            $this->approvals->dismiss($proposal, $request->user());
+            if ($this->housekeepingApprovals->handles($proposal)) {
+                $this->housekeepingApprovals->dismiss($proposal, $user);
+
+                return redirect()->back()->with('toast', 'AI housekeeping/labour draft dismissed. No ops write.');
+            }
+
+            $this->roomApprovals->dismiss($proposal, $user);
         } catch (ValidationException $exception) {
             return redirect()->back()->withErrors($exception->errors());
         }

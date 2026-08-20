@@ -27,6 +27,11 @@ const WRITE_TOOLS = new Set([
   "check_in",
   "check_in_guest",
   "write_occupancy",
+  "publish_hk_board",
+  "publish_assignment_board",
+  "approve_overtime",
+  "mark_ready",
+  "mark_vacant",
 ]);
 
 const TOOLS = [
@@ -87,6 +92,24 @@ const TOOLS = [
     },
   },
   {
+    name: "get_housekeeping_workload",
+    description:
+      "Read-only SL-04 Housekeeping Workload draft: occupancy/departures vs the active rule profile. Does not publish the HK board.",
+    inputSchema: {
+      type: "object",
+      properties: { date: { type: "string", description: "YYYY-MM-DD (default today)" } },
+    },
+  },
+  {
+    name: "get_labour_forecast",
+    description:
+      "Read-only SL-11 Labour Forecast: Today/24h/3d/7d/14d/30d required workers = max(minutes, points, rooms, check-outs, coverage, skill). Does not authorize overtime.",
+    inputSchema: {
+      type: "object",
+      properties: { date: { type: "string", description: "YYYY-MM-DD (default today)" } },
+    },
+  },
+  {
     name: "assign",
     description: "REFUSED. AI cannot assign rooms.",
     inputSchema: { type: "object", properties: {} },
@@ -104,6 +127,21 @@ const TOOLS = [
   {
     name: "check_in",
     description: "REFUSED. AI cannot check in a guest.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "publish_hk_board",
+    description: "REFUSED. AI cannot publish the housekeeping assignment board. Level 1A auto-publish is OFF.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "approve_overtime",
+    description: "REFUSED. AI cannot approve overtime. Lodge Manager only.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "mark_ready",
+    description: "REFUSED. AI cannot invent Vacant or Ready.",
     inputSchema: { type: "object", properties: {} },
   },
 ];
@@ -125,7 +163,7 @@ function refuseWrite(name: string) {
     JSON.stringify({
       ok: false,
       error:
-        "Room Inventory Intelligence is proposal-only. AI cannot assign, hold, release, check in, or write occupancy.",
+        "LodgeX MCP is proposal-only. AI cannot assign, hold, release, check in, publish the HK board, approve overtime, mark Ready, or write occupancy.",
       tool: name,
     }),
     true,
@@ -136,6 +174,7 @@ async function lodgeXFetch(
   env: Env,
   path: string,
   init: RequestInit = {},
+  prefix = "/api/ai/room-inventory",
 ): Promise<unknown> {
   const base = (env.LODGEX_API_BASE || "").replace(/\/$/, "");
   const token = env.LODGEX_MCP_TOKEN || "";
@@ -146,7 +185,7 @@ async function lodgeXFetch(
     throw new Error("LODGEX_MCP_TOKEN is not configured.");
   }
 
-  const response = await fetch(`${base}/api/ai/room-inventory${path}`, {
+  const response = await fetch(`${base}${prefix}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
@@ -215,6 +254,20 @@ async function callTool(name: string, args: Record<string, unknown>, env: Env) {
         method: "POST",
         body: JSON.stringify({ reservation_id: reservationId }),
       });
+      return textResult(JSON.stringify(data));
+    }
+    case "get_housekeeping_workload": {
+      const params = new URLSearchParams();
+      if (args.date != null) params.set("date", String(args.date));
+      const qs = params.toString();
+      const data = await lodgeXFetch(env, qs ? `/?${qs}` : "/", {}, "/api/ai/housekeeping-workload");
+      return textResult(JSON.stringify(data));
+    }
+    case "get_labour_forecast": {
+      const params = new URLSearchParams();
+      if (args.date != null) params.set("date", String(args.date));
+      const qs = params.toString();
+      const data = await lodgeXFetch(env, qs ? `/?${qs}` : "/", {}, "/api/ai/labour-forecast");
       return textResult(JSON.stringify(data));
     }
     default:

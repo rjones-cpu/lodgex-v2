@@ -6,6 +6,8 @@ Foundation for federated AI across Crew Hub, Smart Lodge, and Major Projects.
 - How the runtime works: [FOUNDATION.md](./FOUNDATION.md)
 - Reservation agent training (official standard v1.0): [RESERVATION_AGENT_TRAINING.md](./RESERVATION_AGENT_TRAINING.md)
 - Room Inventory agent (SL-02 + SL-03): [ROOM_INVENTORY_INTELLIGENCE_AGENT.md](./ROOM_INVENTORY_INTELLIGENCE_AGENT.md)
+- Housekeeping Workload agent (SL-04): [HOUSEKEEPING_WORKLOAD_AGENT.md](./HOUSEKEEPING_WORKLOAD_AGENT.md)
+- Labour Forecast agent (SL-11): [LABOUR_FORECAST_AGENT.md](./LABOUR_FORECAST_AGENT.md)
 - ADRs in this folder document decisions actually made in lodgex-v2.
 
 ## Hard rules

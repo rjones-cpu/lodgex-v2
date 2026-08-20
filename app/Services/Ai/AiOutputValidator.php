@@ -41,7 +41,7 @@ class AiOutputValidator
         $decision = strtolower(trim((string) ($payload['decision'] ?? '')));
         if ($decision !== '' && ForbiddenActions::isExecutableDecision($decision)) {
             throw ValidationException::withMessages([
-                'decision' => 'AI cannot emit an execute decision. Wave 1 is recommend / flag only.',
+                'decision' => 'AI cannot emit an execute decision. Wave 1/2 is recommend / flag / draft only.',
             ]);
         }
 

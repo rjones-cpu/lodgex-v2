@@ -15,8 +15,11 @@ class CapabilityResolverTest extends TestCase
         $this->assertTrue($resolver->exists('CH-03'));
         $this->assertTrue($resolver->exists('SL-01'));
         $this->assertTrue($resolver->exists('SL-02'));
-        $this->assertTrue($resolver->exists('SL-03'));
-        $this->assertTrue($resolver->exists('MP-09'));
+        $this->assertTrue($resolver->exists('SL-04'));
+        $this->assertTrue($resolver->exists('SL-11'));
+        $this->assertFalse($resolver->exists('SL-HK-LAB-FORECAST'));
+        $this->assertSame('Housekeeping', $resolver->catalog()['SL-04']['title']);
+        $this->assertSame('Labour Forecasting', $resolver->catalog()['SL-11']['title']);
         $this->assertFalse($resolver->exists('MP-10'));
         $this->assertFalse($resolver->exists('CH-12'));
         $this->assertFalse($resolver->exists('SL-00'));
@@ -35,6 +38,8 @@ class CapabilityResolverTest extends TestCase
         $this->assertTrue($resolver->isAvailable('CH-03'));
         $this->assertTrue($resolver->isAvailable('MP-09'));
         $this->assertSame(['SL-02', 'SL-03'], $resolver->capabilitiesForAgent('room_inventory_intelligence'));
+        $this->assertSame(['SL-04'], $resolver->capabilitiesForAgent('housekeeping_workload'));
+        $this->assertSame(['SL-11'], $resolver->capabilitiesForAgent('labour_forecast'));
         $this->assertSame('SL-02', $resolver->primaryCapabilityForAgent('room_inventory_intelligence'));
         $this->assertContains('SL-03', $resolver->optionalConnections('SL-02'));
         $this->assertFalse($resolver->hasOptionalConnection('SL-02', 'CH-03'));

@@ -63,6 +63,27 @@ class ForbiddenActions
         'change_audit',
         'mark_no_show',
         'execute',
+        'publish_hk_board',
+        'publish_assignment_board',
+        'publish_roster',
+        'approve_overtime',
+        'authorize_overtime',
+        'employment_decision',
+        'hire',
+        'terminate',
+        'approve_timesheet',
+        'mark_ready',
+        'mark_vacant',
+        'mark_vacant_clean',
+        'invent_ready',
+        'invent_vacant',
+        'walk_down_ready',
+        'no_sleep_release',
+        'bypass_safety',
+        'bypass_quality',
+        'maintenance_release',
+        'auto_publish',
+        'send_guest_notice',
     ];
 
     /**
@@ -78,6 +99,12 @@ class ForbiddenActions
         'validate',
         'draft_for_review',
         'monitor',
+        'draft_clean_list',
+        'labour_forecast',
+        'propose_overtime',
+        'propose_limit_override',
+        'propose_special_clean_exception',
+        'propose_ready_with_exception',
     ];
 
     /**

@@ -42,6 +42,14 @@ class MockProvider implements AiProvider
             return 'Shadow recommendation only. Confirm the suggested Vacant Clean room against RoomAvailabilityService, then a person must approve before RoomAssignmentService::assign runs.';
         }
 
+        if ($request->agent === 'housekeeping_workload') {
+            return 'Shadow housekeeping draft only. Limits come from the active rule profile. Do not publish the HK board. Do not invent Vacant or Ready. Level 1A auto-publish is OFF.';
+        }
+
+        if ($request->agent === 'labour_forecast') {
+            return 'Shadow labour forecast only. Required workers = max(minutes, points, rooms, check-outs, coverage, skill). Check-Out-to-Ready-Time windows bind; a daily average is not enough. Do not approve overtime or publish a roster.';
+        }
+
         if ($userPrompt !== '') {
             return 'Mock provider (no network): '.$userPrompt;
         }

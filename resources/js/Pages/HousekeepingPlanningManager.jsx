@@ -12,6 +12,7 @@ import {
     ScenariosPanel,
     TaskBoardPanel,
 } from '../Components/HousekeepingPlanning/Panels';
+import AiHousekeepingLabourShadowPanel from '../Components/Ai/AiHousekeepingLabourShadowPanel';
 import AssignmentEditorModal from '../Components/HousekeepingPlanning/AssignmentEditorModal';
 import AppLayout from '../Layouts/AppLayout';
 import { AppPageBody, AppPageHeader, AppPageShell } from '../Components/AppPageShell';
@@ -63,6 +64,8 @@ export default function HousekeepingPlanningManager({
     scheduleFeeds = [],
     scenarioPresets = [],
     lastUpdated = '',
+    housekeepingWorkloadAi = {},
+    labourForecastAi = {},
 }) {
     const { flash: sessionFlash } = usePage().props;
     const [activeTab, setActiveTab] = useState('overview');
@@ -167,6 +170,10 @@ export default function HousekeepingPlanningManager({
                     </AppPageHeader>
 
                     <AppPageBody className="px-3 pb-4 sm:px-[18px] sm:pb-[18px]">
+                    <AiHousekeepingLabourShadowPanel
+                        workload={housekeepingWorkloadAi}
+                        labour={labourForecastAi}
+                    />
                     <div className="mb-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4">
                         {metrics.map((m) => (
                             <div key={m.label} className="rounded-2xl border border-lx-border bg-white p-3 shadow-lx-soft sm:p-4">

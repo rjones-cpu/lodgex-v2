@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Ai\HousekeepingLabourMcpController;
 use App\Http\Controllers\Ai\RoomInventoryMcpController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,4 +19,24 @@ Route::middleware('mcp.token')->prefix('ai/room-inventory')->group(function () {
         ->defaults('action', 'release');
     Route::match(['post', 'put', 'patch', 'delete'], '/check-in', [RoomInventoryMcpController::class, 'refuseWrite'])
         ->defaults('action', 'check_in');
+});
+
+Route::middleware('mcp.token')->prefix('ai/housekeeping-workload')->group(function () {
+    Route::get('/', [HousekeepingLabourMcpController::class, 'workload']);
+    Route::match(['post', 'put', 'patch', 'delete'], '/publish-board', [HousekeepingLabourMcpController::class, 'refuseWrite'])
+        ->defaults('action', 'publish_hk_board');
+    Route::match(['post', 'put', 'patch', 'delete'], '/approve-overtime', [HousekeepingLabourMcpController::class, 'refuseWrite'])
+        ->defaults('action', 'approve_overtime');
+    Route::match(['post', 'put', 'patch', 'delete'], '/mark-ready', [HousekeepingLabourMcpController::class, 'refuseWrite'])
+        ->defaults('action', 'mark_ready');
+});
+
+Route::middleware('mcp.token')->prefix('ai/labour-forecast')->group(function () {
+    Route::get('/', [HousekeepingLabourMcpController::class, 'labour']);
+    Route::match(['post', 'put', 'patch', 'delete'], '/publish-board', [HousekeepingLabourMcpController::class, 'refuseWrite'])
+        ->defaults('action', 'publish_hk_board');
+    Route::match(['post', 'put', 'patch', 'delete'], '/approve-overtime', [HousekeepingLabourMcpController::class, 'refuseWrite'])
+        ->defaults('action', 'approve_overtime');
+    Route::match(['post', 'put', 'patch', 'delete'], '/mark-ready', [HousekeepingLabourMcpController::class, 'refuseWrite'])
+        ->defaults('action', 'mark_ready');
 });
