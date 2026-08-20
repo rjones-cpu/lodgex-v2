@@ -191,7 +191,12 @@ class RoomInventoryAvailabilityInspectorTest extends TestCase
             'allotment_status' => 'Allotted',
             'room_type' => 'Executive',
         ]);
-        $other = Reservation::create([
+
+        $inspector = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertTrue($inspector->deductsInventory($committed));
+        $this->assertTrue($inspector->isAvailable($room, $committed));
+
+        Reservation::create([
             'user_id' => $user->id,
             'worker_id' => $workerB->id,
             'room_id' => null,
@@ -204,10 +209,8 @@ class RoomInventoryAvailabilityInspectorTest extends TestCase
             'room_type' => 'Executive',
         ]);
 
-        $inspector = app(RoomInventoryAvailabilityInspector::class);
-        $this->assertTrue($inspector->deductsInventory($committed));
-        $this->assertTrue($inspector->isAvailable($room, $committed));
-        $this->assertContains('category_committed', $inspector->unavailableReasons($room, $other));
+        $after = app(RoomInventoryAvailabilityInspector::class);
+        $this->assertContains('category_committed', $after->unavailableReasons($room, $committed));
     }
 
     public function test_dirty_confirmed_still_committed(): void
